@@ -1,0 +1,13 @@
+(lp1
+S'ww1'
+p2
+aS'ne1'
+p3
+aS'ee1'
+p4
+aS'se1'
+p5
+ag3
+aS'nn1'
+p6
+a.

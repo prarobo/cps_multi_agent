@@ -1,0 +1,25 @@
+digraph FSM {
+rankdir = LR;
+size = "8.5,11";
+label = "dba_2.fsm"
+center = 1;
+nodesep = "0.250000"
+ranksep = "0.400000"
+orientation = Landscape
+0 [label = "0", shape = circle, style = bold, fontsize = 14]
+   0 -> 0 [label = "(!p3)", fontsize = 14];
+   0 -> 0 [label = "(p2&&!p3)", fontsize = 14];
+   0 -> 1 [label = "(p1&&!p3)", fontsize = 14];
+   0 -> 2 [label = "(p1&&p2&&!p3)", fontsize = 14];
+1 [label = "1", shape = circle, style = solid, fontsize = 14]
+   1 -> 1 [label = "(!p3)", fontsize = 14];
+   1 -> 2 [label = "(p2&&!p3)", fontsize = 14];
+   1 -> 1 [label = "(p1&&!p3)", fontsize = 14];
+   1 -> 2 [label = "(p1&&p2&&!p3)", fontsize = 14];
+2 [label = "2", shape = doublecircle, style = solid, fontsize = 14]
+   2 -> 0 [label = "(!p3)", fontsize = 14];
+   2 -> 0 [label = "(p2&&!p3)", fontsize = 14];
+   2 -> 1 [label = "(p1&&!p3)", fontsize = 14];
+   2 -> 2 [label = "(p1&&p2&&!p3)", fontsize = 14];
+}
+
