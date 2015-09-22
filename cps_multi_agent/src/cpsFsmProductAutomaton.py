@@ -6,8 +6,8 @@ Created on Aug 26, 2015
 '''
 from FSA import FSA, compileRE, complement
 from copy import deepcopy
-from itertools import permutations
-from cpsFsmFsa import generateFactorFsa, CustomFSA, customFSAIntersection, removeFsaFromProduct, serializeFsaStates
+from itertools import permutations, product
+from cpsFsmFsa import generateFactorFsa, CustomFSA, customFsaProduct, removeFsaFromProduct, serializeFsaStates
 from types import TupleType
 
 __author__ = 'Prasanna Kannappan <prasanna@udel.edu>'
@@ -18,6 +18,7 @@ class fsmProductAutomaton(object):
         self.grammarFsa = []
         self.transitionFsa = []
         self.productFsa = []
+        self.nextPlayerName = None
         return
     
     def computeFsaProductTransitions(self, gameStates, gameTransitions, advGrammarObj, advAlphabet, advName):
@@ -28,31 +29,43 @@ class fsmProductAutomaton(object):
         # Getting grammar fsa
         self.grammarFsa, self.serialCharTupleMap, self.serialTupleCharMap = serializeFsaStates( self.generateGrammarFsa(advGrammarObj, 
                                                                                                                         advAlphabet), 
-                                                                                      serialStartVal = 1)
+                                                                                               serialStartVal = 1)
         
         # Get adversary game parameters
-        advStates, advTransitions = self.filterGameParameters(gameStates, gameTransitions, advName)
-               
+        advStates, advTransitions, advTargetTransitions, agentStates, agentTransitions \
+                                = self.filterAdversaryFromGameParameters(gameStates, 
+                                                                         gameTransitions, 
+                                                                         advName)
         # Getting transition fsa
         self.transitionFsa = CustomFSA(advStates, advAlphabet, advTransitions, advStates, advStates, simplifyActions = False)
         
         # Get product of grammar and transition fsa
-        self.productFsa = customFSAIntersection(self.grammarFsa, self.transitionFsa, simplifyActions = False)
+        self.productFsa = customFsaProduct(self.grammarFsa, self.transitionFsa, simplifyActions = False)
         
         # Reduce product fsa
         # reducedProductFsa = removeFsaFromProduct(self.productFsa, agentStateTupleRefIndex = 1)
+        
+        # Sanity checks
+        self.sanityChecksForStatesAndTransitions(self.productFsa.states, self.productFsa.transitions)            
                 
-        # Product states and transitions 
-        productTransitions = self.productFsa.transitions
-        productStates = self.productFsa.states
+        # Product states and transitions from adversary specific parameters
+        productStates, productTransitions = self.filterGameFromAdversaryParameters(self.productFsa.states, 
+                                                                                   self.productFsa.transitions,
+                                                                                   advTargetTransitions)
+
+        # Sanity checks
+        self.sanityChecksForStatesAndTransitions(productStates, productTransitions)                 
         
         # Agent transitions and states
-        agentTransitions = gameTransitions.difference(advTransitions)
-        agentStates = set(gameStates.keys()).difference(advStates)
+        # agentTransitions = gameTransitions.difference(advTransitions)
+        # agentStates = set(gameStates.keys()).difference(advStates)
         
         # Add dummy index to make agent states and transitions consistent with product states and transitions
         agentStates, agentTransitions = self.addDummyStateTupleIndex(agentStates, agentTransitions, dummyIndexVal = 0)
         
+        # Sanity checks
+        self.sanityChecksForStatesAndTransitions(agentStates, agentTransitions)              
+
         # Combine agent and adversary parameters
         totalStates = set.union(set(productStates), agentStates)
         totalTransitions = set.union(productTransitions, agentTransitions)
@@ -71,23 +84,59 @@ class fsmProductAutomaton(object):
                  
         return totalStates, totalTransitions
 
-    def filterGameParameters(self, gameStates, gameTransitions, advName):
+    def filterAdversaryFromGameParameters(self, gameStates, gameTransitions, advName):
         '''Filter adversary's game parameters'''
-        
-        # Filter adversary states
+
         advStates = set()
+        advTrans = set()
+        agentStates = set()
+        agentTrans = set()
+        advTargetTrans = set()
+            
+        # Filter adversary states
         for i in gameStates.keys():
             if gameStates[i].userID[-1] == advName:
                 advStates.add(i)
+            else:
+                agentStates.add(i)
                 
         # Filter transitions based on whose turn it is    
-        advTrans = set()
         for t in gameTransitions:
             if gameStates[t[0]].userID[-1] == advName:
-                advTrans.add(t)
+                targetStateUserID = deepcopy(gameStates[t[1]].userID)
+                self.nextPlayerName = targetStateUserID[-1]
+                targetStateUserID[-1] = advName
+                targetStateMachineID = "_".join(map(str, targetStateUserID))                
+                advTrans.add((t[0], targetStateMachineID, t[2]))
+            else:
+                if gameStates[t[1]].userID[-1] == advName:
+                    advTargetTrans.add(t)
+                else:                    
+                    agentTrans.add(t)
+                        
+        return advStates, advTrans, advTargetTrans, agentStates, agentTrans
+
+    def filterGameFromAdversaryParameters(self, prodInStates, prodInTransitions, 
+                                                advTargetTransitions, stateNonGrammarInd = 1, 
+                                                stateGrammarInd = 0):
+        '''Filter adversary's game parameters'''
+
+        prodOutStates = deepcopy(prodInStates)
+        prodOutTrans = set()
+        
+        # Sanity check to see if next player name is available
+        assert self.nextPlayerName, "Next player name not available"
                 
-        return advStates, advTrans
-     
+        # Filter transitions based on whose turn it is    
+        for t in prodInTransitions:
+            for t1 in advTargetTransitions:
+                if t1[1] == t[1][stateNonGrammarInd]:
+                    prodOutTrans.add((('0', t1[0]), t[1], t1[2]))
+            targetStateMachineID = t[1][stateNonGrammarInd][:-2]+self.nextPlayerName                
+            prodOutTrans.add((t[0], ('0', targetStateMachineID), t[2]))
+                        
+        return prodOutStates, prodOutTrans
+
     def generateGrammarFsa(self, grammarObj, agentAlphabet):
         '''Generate the fsa corresponding to grammar'''
         
@@ -100,7 +149,7 @@ class fsmProductAutomaton(object):
         if len(alphabet) < grammarParams:
             alphabet = [alphabet[0]]*grammarParams
         
-        allFactors = set(permutations(alphabet, grammarParams))
+        allFactors = set(product(alphabet, repeat=grammarParams))
         complementFactors = allFactors.difference(grammarFactors)
         
         grammarFsa = generateFactorFsa(alphabet, complementFactors, grammarName, grammarParams)
@@ -121,12 +170,23 @@ class fsmProductAutomaton(object):
             
         for t in transitions:
             if isinstance(t[0], TupleType):
-                outTransitions.add( ( (str(dummyIndexVal),) + t[0], (str(dummyIndexVal),) + t[1], t[2] ,) )
+                outTransitions.add( ( (str(dummyIndexVal),) + t[0], (str(dummyIndexVal),) + t[1], t[2]) )
             else:
-                outTransitions.add( ( (str(dummyIndexVal), t[0]), (str(dummyIndexVal), t[1]) , t[2] ,) )
+                outTransitions.add( ( (str(dummyIndexVal), t[0]), (str(dummyIndexVal), t[1]), t[2]) )
                        
-        return outStates, outTransitions        
-        
+        return outStates, outTransitions    
+    
+    def sanityChecksForStatesAndTransitions(self, states = [], transitions = []):    
+        '''Check if all states and transitions are of the right form'''
+        for state in list(states):
+            assert len(state[0]) < 3, "First component of state too long: %s" % (str(state))
+            assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(state))
+        for t in transitions:
+            for state in t[:2]:
+                assert len(state[0]) < 3, "First component of state too long: %s" % (str(t))
+                assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(t))        
+        return
+       
 if __name__ == '__main__':
     tempFsa = compileRE('.*b.*b')
     tempFsa.view()

@@ -94,6 +94,7 @@ class guiState(object):
         self.envIndex = 0
         self.labelDisplayExcl = ['p4']
         self.usePolicy = 1
+        self.currProdState = None
         
         self.stateLog = []
         self.actionLog = []
@@ -666,7 +667,7 @@ class guiState(object):
 #                     self.policyAction = self.matlabObj.P.getAction(self.matlabObj.dist, state)
 #                 if self.policyAction:                                                    
 #                     w.btnPlayRobot.configure(state=NORMAL)
-                if self.robotPolicy[self.getMachineID()]:
+                if self.robotPolicy[self.currProdState]:
                     w.btnPlayRobot.configure(state=NORMAL)
                     act = self.getFuturePolicyActions()
                     w.txtOutput.insert(END,'Policy actions available  '+str(act)+'\n')
@@ -687,23 +688,24 @@ class guiState(object):
             self.beeper()
         return
     
-    def getFuturePolicyActions(self):
+    def getFuturePolicyActions(self, stateNonGrammarInd = 1):
         '''Returns the sequence of actions available from policy'''
         
-        currState = self.getMachineID()
+        currState = self.currProdState
         currMove = self.currMove
         
         act = [None]*(self.numAgents-currMove)
         
         for i in xrange(self.numAgents-currMove):
+            
             resultState = self.robotPolicy[currState]
             
             # Exit if bad transition state is found
             if not resultState:
                 break
             
-            act[i] = self.turnProduct.getTransitionAction(currState, resultState)
-            currState = resultState
+            act[i] = self.turnProduct.getTransitionAction(currState[stateNonGrammarInd], resultState)
+            currState = ('0', resultState)
             
         return act
     
@@ -727,7 +729,7 @@ class guiState(object):
         return actionID, resultPos  
     
     def playRobotCallback(self):
-        endState = self.robotPolicy[self.getMachineID()]
+        endState = self.robotPolicy[self.currProdState]
         if endState:
             endGridSq = map(int, list(endState[self.currMove*6+3:self.currMove*6+5]))
             robotIndex = self.currMove-self.numEnv
@@ -771,7 +773,7 @@ class guiState(object):
         self.stateLog.append(self.getMachineID())
         if self.currMove > self.numEnv-1 and self.usePolicy:
             if not self.useMatlab:
-                if self.robotPolicy[self.getMachineID()]:                                                   
+                if self.robotPolicy[self.currProdState]:                                                   
                     w.btnPlayRobot.configure(state=NORMAL)
                     self.playRobotCallback()
                 else:
@@ -797,9 +799,9 @@ class guiState(object):
         if not hasattr(self, "robotPolicy"):
             w.txtOutput.insert(END,'Generating robot policy ...')
             root.update_idletasks()
-            self.robotPolicy = self.matlabObj.gtsPolicyGenerator(self.turnProduct, self.gameStateLabels,
-                                                                 self.initState, self.numAgents, 
-                                                                 self.numEnv)
+            self.robotPolicy, self.currProdState = self.matlabObj.gtsPolicyGenerator(self.turnProduct, self.gameStateLabels,
+                                                                                     self.initState, self.numAgents, 
+                                                                                     self.numEnv)
             self.initLog['turnProduct'] = deepcopy(self.turnProduct)
             self.initLog['gameStateLabels'] = deepcopy(self.gameStateLabels)
             self.initLog['initState'] = deepcopy(self.initState)
@@ -811,9 +813,9 @@ class guiState(object):
             root.update_idletasks()
             lastAction = self.actionLog[-1]
             currState = self.stateLog[-1]
-            self.robotPolicy = self.matlabObj.gtsPolicyUpdater(self.turnProduct, self.robotPolicy, 
-                                                               self.stateLog, self.numAgents, 
-                                                               self.numEnv, lastAction, currState)         
+            self.robotPolicy, self.currProdState = self.matlabObj.gtsPolicyUpdater(self.turnProduct, self.robotPolicy, 
+                                                                                   self.stateLog, self.numAgents, 
+                                                                                   self.numEnv, lastAction, currState, self.initState)         
 
         endTime = time.time()
         self.policyLog.append(deepcopy(self.robotPolicy))

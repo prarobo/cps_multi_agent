@@ -200,7 +200,9 @@ class WeightedTransitionSystem(GraphicalModel):
             likelihood1(optional): Estimation.LikelihoodFunction associated with state1
             likelihood2(optional): Estimation.LikelihoodFunction associated with state2
         """
-        self.states.add(state1); self.states.add(state2)
+        # self.states.add(state1); self.states.add(state2)
+        self.addState(state1)
+        self.addState(state2)
         if state1 not in self.transitions.keys(): self.transitions[state1]=dict()
         self.transitions[state1][actionarg] = (weightarg,state2)
         self.graphRepresentation.add_edge(state1,state2,weight=weightarg,action=actionarg)
@@ -222,10 +224,9 @@ class WeightedTransitionSystem(GraphicalModel):
         for state in gameStates:
             # First convert labels into strings of the form p1&p2&p3 for all propositions that are true 
             label = '' 
-            
             #PRASANNA_EDIT
             #Previously: props = gameLabels[state].propositionList
-            props = gameLabels[state]
+            props = gameLabels[state[1]]
             for i in xrange(len(props)-1):
                 if props['p'+str(i+1)] != []:
                     if len(label) == 0:
@@ -238,6 +239,7 @@ class WeightedTransitionSystem(GraphicalModel):
             self.addState(state)
             self.labelMapping[state] = label
         for trans in gameTransitions:
+            # print 'Trans:',trans
             self.addTransition(trans[0],trans[2],1,trans[1])
 
     def incrTrans(self,newTransitions):

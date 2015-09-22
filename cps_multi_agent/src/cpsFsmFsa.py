@@ -18,6 +18,7 @@ import re
 import types
 import os, tempfile
 import string
+import funcy
 
 # Special constants for
 OP_ANY = "ANY"
@@ -118,6 +119,21 @@ class CustomFSA(object):
         self.adjMat = adjMat
         return
     
+    def traverseFsa(self, startState, actionList):
+        '''Traverse an fsa from start state via actions list. Finally find the 
+        target state we reach'''
+        
+        currState = startState
+        for a in actionList:
+            
+            # Traverse one transition
+            currState = getTargetStateOnAction(currState, a, self.transitions)
+            
+            #Sanity check
+            assert currState, "Target state not found while traversing actions!"
+            
+        return currState            
+    
 def serializeFsaStates(inFsa, serialStartVal = 0):
     '''Serialize state labels to numbers'''
     states = inFsa.states
@@ -146,7 +162,7 @@ def serializeFsaStates(inFsa, serialStartVal = 0):
         
     # Serialize transitions
     for t in transitions:
-        serialTransitions.add((serialTupleCharMap[t[0]], serialTupleCharMap[t[1]], t[2]))
+        serialTransitions.add((serialTupleCharMap[str(t[0])], serialTupleCharMap[str(t[1])], t[2]))
     
     # Get serialized fsa
     outFsa = CustomFSA(serialStates, inFsa.alphabet, serialTransitions, 
@@ -244,7 +260,7 @@ def generateSPkFactorFsa(alphabet, factors, grammarParams):
         currFsa = generateSPkSingleFactorFsa(alphabet, factor, grammarParams)
 
         # Recursively intersect fsas
-        outFsa = customFSAIntersection(outFsa, currFsa, simplifyActions = False)
+        outFsa = customFsaProduct(outFsa, currFsa, simplifyActions = False)
     
     return outFsa
 
@@ -259,7 +275,7 @@ def generateSLkFactorFsa(alphabet, factors, grammarParams):
         currFsa = generateSLkSingleFactorFsa(alphabet, factor, grammarParams)
 
         # Recursively intersect fsas
-        outFsa = customFSAIntersection(outFsa, currFsa, simplifyActions = False)
+        outFsa = customFsaProduct(outFsa, currFsa, simplifyActions = False)
 
     return outFsa
 
@@ -283,14 +299,77 @@ def generateFactorFsa(alphabet, factors, grammarName, grammarParams):
     else:
         raise "Unknown factor type"
     return
+
+def customFsaProduct(fsaA, fsaB, simplifyActions = True):
+    '''Product of two fsas'''
     
-def customFSAIntersection(fsaA, fsaB, simplifyActions = True):
+    # Alphabet
+    alphabet = set.intersection(fsaA.alphabet, fsaB.alphabet)
+    
+    # Initial states
+    initStates = set(itertools.product(fsaA.initStates, fsaB.initStates))
+    
+    # Initialize Fringe
+    fringeStates = deepcopy(initStates)
+    
+    # Initialize states and transitions
+    states = set()
+    transitions = set()
+    
+    while fringeStates:
+        currState = fringeStates.pop()
+        states.add(currState)
+        
+        actionsA = getActionsFromState(currState[0], fsaA.transitions)
+        actionsB = getActionsFromState(currState[1], fsaB.transitions)
+        commonActions = list(set.intersection(actionsA, actionsB))
+        
+        for a in commonActions:
+            stateA = getTargetStateOnAction(currState[0], a, fsaA.transitions)
+            stateB = getTargetStateOnAction(currState[1], a, fsaB.transitions)
+            
+            # Add state to fringe if it has not already been expanded
+            if (stateA, stateB) not in states:
+                fringeStates.add((stateA, stateB))
+                
+            transitions.add((currState, (stateA, stateB), a))
+ 
+    # Final states
+    finalStates = set(itertools.product(fsaA.finalStates, fsaB.finalStates))
+    finalStates.intersection_update(states)
+
+    # Restore states to the original state product (for uniformity sake)
+    states = list(itertools.product(fsaA.states, fsaB.states))
+   
+    return CustomFSA(states, alphabet, transitions, initStates, finalStates, simplifyActions)    
+
+def getActionsFromState(state, transitions):
+    '''Get all out going actions from a given state'''
+    transitions = list(transitions)
+    actions = set()
+    
+    for t in transitions:
+        if t[0]==state:
+            actions.add(t[2])
+            
+    return actions
+
+def getTargetStateOnAction(state, action, transitions):
+    '''Get all out going actions from a given state'''
+    transitions = list(transitions)
+    
+    for t in transitions:
+        if t[0]==state and t[2]==action:
+            return t[1]            
+    return None
+    
+def customFSAInefficientIntersection(fsaA, fsaB, simplifyActions = True):
     '''Intersection of two fsa'''
     
-    states = list(itertools.product(fsaA.states, fsaB.states))
+    states = [tuple(funcy.flatten(i)) for i in itertools.product(fsaA.states, fsaB.states)]
     alphabet = set.union(fsaA.alphabet, fsaB.alphabet)
-    initStates = list(itertools.product(fsaA.initStates, fsaB.initStates))
-    finalStates = list(itertools.product(fsaA.finalStates, fsaB.finalStates))
+    initStates = [tuple(funcy.flatten(i)) for i in itertools.product(fsaA.initStates, fsaB.initStates)]
+    finalStates = [tuple(funcy.flatten(i)) for i in itertools.product(fsaA.finalStates, fsaB.finalStates)]
     
     transitions = []
     for ti in fsaA.transitions:
