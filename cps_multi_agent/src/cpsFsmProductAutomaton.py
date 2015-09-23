@@ -7,7 +7,8 @@ Created on Aug 26, 2015
 from FSA import FSA, compileRE, complement
 from copy import deepcopy
 from itertools import permutations, product
-from cpsFsmFsa import generateFactorFsa, CustomFSA, customFsaProduct, removeFsaFromProduct, serializeFsaStates
+from cpsFsmFsa import generateFactorFsa, CustomFSA, customFsaProduct
+from cpsFsmFsa import customFSAInefficientIntersection, removeFsaFromProduct, serializeFsaStates
 from types import TupleType
 
 __author__ = 'Prasanna Kannappan <prasanna@udel.edu>'
@@ -30,6 +31,7 @@ class fsmProductAutomaton(object):
         self.grammarFsa, self.serialCharTupleMap, self.serialTupleCharMap = serializeFsaStates( self.generateGrammarFsa(advGrammarObj, 
                                                                                                                         advAlphabet), 
                                                                                                serialStartVal = 1)
+        # self.grammarFsa.view()
         
         # Get adversary game parameters
         advStates, advTransitions, advTargetTransitions, agentStates, agentTransitions \
@@ -41,6 +43,10 @@ class fsmProductAutomaton(object):
         
         # Get product of grammar and transition fsa
         self.productFsa = customFsaProduct(self.grammarFsa, self.transitionFsa, simplifyActions = False)
+        # temp = customFSAInefficientIntersection(self.grammarFsa, self.transitionFsa, simplifyActions = False)
+        
+        # Sanity check
+        # assert self.productFsa == temp, "Efficient and inefficient products not matching"
         
         # Reduce product fsa
         # reducedProductFsa = removeFsaFromProduct(self.productFsa, agentStateTupleRefIndex = 1)

@@ -31,7 +31,7 @@ class CustomFSA(object):
         '''Constructor'''
         self.states = states
         self.alphabet = set(alphabet)
-        self.initStates = initStates
+        self.initStates = set(initStates)
         self.finalStates = set(finalStates)
         self.simplifyActions = simplifyActions
         
@@ -132,7 +132,25 @@ class CustomFSA(object):
             #Sanity check
             assert currState, "Target state not found while traversing actions!"
             
-        return currState            
+        return currState  
+    
+    def cleanFsa(self):
+        '''Clear fsa from unwanted states, etc'''
+         
+        # Collect all states from transitions
+        transitionStates = set()
+        for t in self.transitions:
+            transitionStates.update([t[0], t[1]])
+            
+        # Remove final states not in initial states and transitions
+        self.finalStates.intersection_update(transitionStates.union(self.initStates))
+        
+        # Set states as union of transition states and initial states
+        self.states = transitionStates.union(self.initStates)        
+        return                      
+        
+    def __eq__(self, other): 
+        return self.__dict__ == other.__dict__
     
 def serializeFsaStates(inFsa, serialStartVal = 0):
     '''Serialize state labels to numbers'''
@@ -209,7 +227,7 @@ def generateSPkSingleFactorFsa(alphabet, factor, grammarParams):
     transitions = set()
     
     for i in xrange(grammarParams):
-        tempSet = list(set.difference(alphabet,set(factor[i])))
+        tempSet = list(alphabet.difference(set([factor[i]])))
         
         # Self loops
         for j in tempSet:
@@ -233,7 +251,7 @@ def generateSLkSingleFactorFsa(alphabet, factor, grammarParams):
     transitions = set()
     
     for i in xrange(grammarParams):
-        tempSet = list(set.difference(alphabet,set(factor[i])))
+        tempSet = list(set.difference(alphabet,set([factor[i]])))
         
         if i != len(factor)-1:
             # Self loops
@@ -261,6 +279,7 @@ def generateSPkFactorFsa(alphabet, factors, grammarParams):
 
         # Recursively intersect fsas
         outFsa = customFsaProduct(outFsa, currFsa, simplifyActions = False)
+        outFsa.cleanFsa()
     
     return outFsa
 
@@ -276,6 +295,7 @@ def generateSLkFactorFsa(alphabet, factors, grammarParams):
 
         # Recursively intersect fsas
         outFsa = customFsaProduct(outFsa, currFsa, simplifyActions = False)
+        outFsa.cleanFsa()
 
     return outFsa
 

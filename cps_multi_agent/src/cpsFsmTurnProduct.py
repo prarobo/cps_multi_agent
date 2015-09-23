@@ -405,7 +405,7 @@ class fsmTurnProduct(object):
                 
         return self.agents[turnID1].actionObj.getActionID(agPos1, agPos2)  
     
-    def computeGrammarProduct(self, initState, currState, stateNonGrammarInd=1, stateGrammarInd=0): 
+    def computeGrammarProduct(self, initState, currState, stateNonGrammarInd=1, stateGrammarInd=0, performStateTrace=False): 
         '''Get the product automaton of grammar and transition graph'''
         
         # Get fsa parameters
@@ -428,24 +428,31 @@ class fsmTurnProduct(object):
                                                                                       advAlphabet, advName)                
 
         # Sanity check to see if transitions are lost
-        assert not set.difference(self.prevProdTransitions, prodTransitions), "Some transitions are lost!"
+        if self.prevProdTransitions.difference(prodTransitions):
+            t1 = self.prevProdTransitions.difference(prodTransitions)
+            t2 = prodTransitions.difference(self.prevProdTransitions)
+            pass
+        assert not self.prevProdTransitions.difference(prodTransitions), "Some transitions are lost!"
         
         # Get the new transitions
         newTransitions = prodTransitions.difference(self.prevProdTransitions)
-                
-        # Get init product state
-        initProdState = None
-        for state in self.prodAutomaton.productFsa.initStates:
-            if state[stateNonGrammarInd] == initState:
-                initProdState = state
         
-        # Sanity check to see if initial state is found in product
-        assert initProdState, "Product initial state cannot be identified, too bad!"
-        
-        # Traverse fsa to get current state
-        currProdState = self.prodAutomaton.productFsa.traverseFsa(initProdState, advGrammarObj.moveSeq) 
-        currProdState = (currProdState[stateGrammarInd], currProdState[stateNonGrammarInd][:-2]+self.prodAutomaton.nextPlayerName)                             
-        
+        if performStateTrace:        
+            # Get init product state
+            initProdState = None
+            for state in self.prodAutomaton.productFsa.initStates:
+                if state[stateNonGrammarInd] == initState:
+                    initProdState = state
+            
+            # Sanity check to see if initial state is found in product
+            assert initProdState, "Product initial state cannot be identified, too bad!"
+            
+            # Traverse fsa to get current state
+            currProdState = self.prodAutomaton.productFsa.traverseFsa(initProdState, advGrammarObj.moveSeq) 
+            # currProdState = (currProdState[stateGrammarInd], currProdState[stateNonGrammarInd])
+        else:
+            currProdState = None
+            
         self.prevProdTransitions = prodTransitions
         return prodStates, prodTransitions, newTransitions, currProdState
 

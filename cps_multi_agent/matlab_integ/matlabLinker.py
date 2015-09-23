@@ -207,23 +207,17 @@ class matlabLinker(object):
         userID.extend(['T', gameProduct.agentNames[nextAgent]])
                      
         return gameProduct.generateMachineID(userID)            
-
     
     def gtsNonMatlabPolicyGenerator(self, gameProduct, gameStateLabels, initState, numEnv):
         '''Generating GTS directly from python without matlab
         This is only used to initialize the policy and does not perform incremental update'''
         
         # Get the game parameters
-        gameStates, prodTransitions, _, currProdState = gameProduct.computeGrammarProduct(initState, initState)
+        gameStates, prodTransitions, _, currProdState = gameProduct.computeGrammarProduct(initState, initState,
+                                                                                          performStateTrace = True)
         
         # Sanity checks
-        for state in list(gameStates)+[currProdState]:
-            assert len(state[0]) < 3, "First component of state too long: %s" % (str(state))
-            assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(state))
-        for t in prodTransitions:
-            for state in t[:2]:
-                assert len(state[0]) < 3, "First component of state too long: %s" % (str(t))
-                assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(t))                
+        self.sanityChecksForStatesAndTransitions((gameStates)+[currProdState], prodTransitions)             
 
         # prodTransitions contains the transitions in form of a set. each element of the set is a
         # tuple with three elements
@@ -274,7 +268,6 @@ class matlabLinker(object):
 #         gamePolicy
 #         for state in self.P.currentStates:
 #             self.policyAction = self.matlabObj.P.getAction(self.matlabObj.dist, state)
-
         
     def gtsNonMatlabPolicyUpdater(self, gameProduct, numEnv, lastAction, currState, initState):
         '''Generating GTS directly from python without matlab
@@ -282,16 +275,12 @@ class matlabLinker(object):
         For initialization see function gtsNonMatlabPolicyGenerator'''
         
         # Get the game parameters
-        prodStates, prodTransitions, newTransitions, currProdState = gameProduct.computeGrammarProduct(initState, currState)
+        prodStates, prodTransitions, newTransitions, _ = gameProduct.computeGrammarProduct(initState, currState, 
+                                                                                           performStateTrace = False)
+        currProdState = (str(0), currState)
         
         # Sanity checks
-        for state in list(prodStates)+[currProdState]:
-            assert len(state[0]) < 3, "First component of state too long"
-            assert len(state[1]) == 22, "Second component of state not the right size"
-        for t in prodTransitions:
-            for state in t[:2]:
-                assert len(state[0]) < 3, "First component of state too long"
-                assert len(state[1]) == 22, "Second component of state not the right size"         
+        self.sanityChecksForStatesAndTransitions(list(prodStates)+[currProdState], prodTransitions)     
                 
         # Check if the GTS is initialized before it is incrementally updated
         assert (hasattr(self, 'GTS') and hasattr(self,'buchi') and hasattr(self,'P')), "Trying to update GTS before initialization" 
@@ -310,7 +299,18 @@ class matlabLinker(object):
         actionPolicy = self.P.policyDict(self.dist)
         gamePolicy = self.policyActionToState(actionPolicy, gameProduct, numEnv)
         return gamePolicy, currProdState
-         
+
+    def sanityChecksForStatesAndTransitions(self, states = [], transitions = []):    
+        '''Check if all states and transitions are of the right form'''
+        for state in list(states):
+            assert len(state[0]) < 3, "First component of state too long: %s" % (str(state))
+            assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(state))
+        for t in transitions:
+            for state in t[:2]:
+                assert len(state[0]) < 3, "First component of state too long: %s" % (str(t))
+                assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(t))        
+        return
+             
     def destructor(self):
         self.matlabEng.quit() 
         return

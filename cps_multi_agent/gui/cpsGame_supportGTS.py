@@ -42,7 +42,6 @@ except ImportError:
     import tkinter.ttk as ttk
     py3 = 1
 
-
 def set_Tk_var():
     # These are Tk variables used passed to Tkinter and must be
     # defined before the widgets using them are created.
@@ -761,6 +760,7 @@ class guiState(object):
         
         self.robotPos[robotInd] = [remapX, remapY]
         self.currMove = (self.currMove + 1) % self.numAgents   
+        self.currProdState = (str(0), self.getMachineID())
         
         if self.usePolicy and (not self.useMatlab):
             self.matlabObj.P.input(currAction)   
