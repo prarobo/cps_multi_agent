@@ -12,7 +12,7 @@ import sys
 sys.path.append("../gui")
 sys.path.append("../fsa") 
 
-import cpsFsmIndividual
+from cpsFsmIndividual import fsmIndiv
 from cpsFsmState import fsmState
 from FSA import FSA
 import numpy as np
@@ -22,6 +22,8 @@ import cpsFsmLabelFunctions
 import itertools
 from copy import deepcopy
 from cpsFsmProductAutomaton import fsmProductAutomaton
+from cpsFsmFsa import traverseTransitions
+import funcy
 
 class fsmTurnProduct(object):
     '''
@@ -47,25 +49,28 @@ class fsmTurnProduct(object):
         self.numAgents = len(agents) 
         
         # Names of agents
-        self.agentNames = [agents[i].agentName for i in range(self.numAgents)]  
+        self.agentNames = [agents[i].agentName for i in xrange(self.numAgents)]  
         
         # States of all agents
-        self.agentStates = [agents[i].states.copy() for i in range(self.numAgents)]
+        self.agentStates = [agents[i].states.copy() for i in xrange(self.numAgents)]
         
         # Proposition Names of all agent
         # self.agentPropositionNames = [agents[i].propositionNames for i in range(self.numAgents)]
         
         # Agent alphabets
-        self.agentAlphabet = [agents[i].alphabetList for i in range(self.numAgents)]            
+        self.agentAlphabet = [agents[i].alphabetList for i in xrange(self.numAgents)]            
         
         # Agent last updated alphabet list
-        self.agentPrevAlphabet = [set([]) for i in range(self.numAgents)]
+        self.agentPrevAlphabet = [set([]) for i in xrange(self.numAgents)]
         
         # Transitions from product of transition graph and grammar
         self.prevProdTransitions = set()
         
         # Create product automaton object
         self.prodAutomaton = fsmProductAutomaton()
+        
+        # Set agent move order
+        self.moveOrder = [agents[i].agentName for i in xrange(self.numAgents)]
 
         
         #Insert dummy states for each agent
@@ -422,33 +427,55 @@ class fsmTurnProduct(object):
         advGrammarObj = self.agents[agentID].grammarObj
         advAlphabet = self.agentAlphabet[agentID] 
         advName = self.agents[agentID].agentName
+        
+        # Get the move sequence list
+        moveSeqList = []
+        for i in xrange(self.numAgents):
+            for j in xrange(self.numAgents):
+                
+                # Check if agent name matches with the move order before extracting the corresponding moves
+                if self.moveOrder[i] == self.agents[j].agentName:
+                    currMoveSeq = self.agents[j].grammarObj.moveSeq
+                    
+                    # Check if the agent is UNKNOWN. Needed to trim initial dummy moves.
+                    if self.agents[i].agentType == 'UNKNOWN':
+                        grammarFactorLen = self.agents[j].grammarObj.grammarParams[0]
+                        currMoveSeq = currMoveSeq[grammarFactorLen:]
+                        
+                    moveSeqList.append(currMoveSeq)
+                    
+        # Convert list of move sequences of each agent into a contiguous sequence
+        moveSeq = list(itertools.izip_longest(*moveSeqList))
+        moveSeq = funcy.flatten(moveSeq)
+        moveSeq = [i for i in moveSeq if i is not None]
+        
             
         # Update product automaton and get product transitions
         prodStates, prodTransitions = self.prodAutomaton.computeFsaProductTransitions(self.gameStates, gameTransitions, advGrammarObj, 
                                                                                       advAlphabet, advName)                
 
         # Sanity check to see if transitions are lost
-        if self.prevProdTransitions.difference(prodTransitions):
-            t1 = self.prevProdTransitions.difference(prodTransitions)
-            t2 = prodTransitions.difference(self.prevProdTransitions)
-            pass
-        assert not self.prevProdTransitions.difference(prodTransitions), "Some transitions are lost!"
+        # if self.prevProdTransitions.difference(prodTransitions):
+            # t1 = self.prevProdTransitions.difference(prodTransitions)
+            # t2 = prodTransitions.difference(self.prevProdTransitions)
+            # pass
+        # assert not self.prevProdTransitions.difference(prodTransitions), "Some transitions are lost!"
         
         # Get the new transitions
         newTransitions = prodTransitions.difference(self.prevProdTransitions)
         
         if performStateTrace:        
             # Get init product state
-            initProdState = None
-            for state in self.prodAutomaton.productFsa.initStates:
-                if state[stateNonGrammarInd] == initState:
-                    initProdState = state
+            initProdState = (list(self.prodAutomaton.grammarFsa.initStates)[0], initState)
+            # for state in self.prodAutomaton.productFsa.initStates:
+            #    if state[stateNonGrammarInd] == initState:
+            #        initProdState = state
             
             # Sanity check to see if initial state is found in product
-            assert initProdState, "Product initial state cannot be identified, too bad!"
+            assert initProdState in prodStates, "Product initial state cannot be identified, too bad!"
             
             # Traverse fsa to get current state
-            currProdState = self.prodAutomaton.productFsa.traverseFsa(initProdState, advGrammarObj.moveSeq) 
+            currProdState = traverseTransitions(initProdState, moveSeq, prodTransitions) 
             # currProdState = (currProdState[stateGrammarInd], currProdState[stateNonGrammarInd])
         else:
             currProdState = None
@@ -457,161 +484,184 @@ class fsmTurnProduct(object):
         return prodStates, prodTransitions, newTransitions, currProdState
 
 '''Unit Test'''
-if __name__=="__main__":
-    start_time = time.time()
-    arenaDimensions = [3,3] #Grid dimensions (x-dir,y-dir) or (col, row)
+# if __name__=="__main__":
+#     start_time = time.time()
+#     arenaDimensions = [2,2] #Grid dimensions (x-dir,y-dir) or (col, row)
+#     numRobots = 2
+#     
+#     ##################### Creating robot agent #######################################################
+#     #
+#     # arenaDimensions: size of arena (x-dir cells, y-dir-cells)
+#     # arenaDimensions should be consistent for all agents and the turn-based product
+#     # of the game. Turn-based product verifies this and throws an error if there is a mismatch.
+#     # 
+#     # robotLabelFuction: User-defined label function for the robot agent. For more documentation on label
+#     # functions and to see the default robot and env agent label functions, refer to the module
+#     # cpsFsmLabelFunctions.py
+#     #
+#     # agentAlphabetInput: Prior knowledge on the dynamics of the agent or in other words
+#     # the agent alphabet. This should be a subset of the action library (contains 26 actions) connected
+#     # with the agent. To see more details about the action library, see the documentation of
+#     # the module cpsFsmActions.py
+#     #
+#     # syntax: agentAlphabetInput=[['dir1',min_step1, max_step1], ['dir2',min_step2, max_step2], ...]
+#     # e.g. agentAlphabetInput=[['n',1,3], ['e',1,1]]
+#     #
+#     # This example implies that the agent can move in the north direction a minimum of 1 square
+#     # and a maximum of 3 squares, and it can also move 1 square in the east direction.
+#     # All possible actions here are (N1, N2, N3, E1)
+#     #
+#     # For the robot agent we fix its dynamics as
+#     # agentAlphabetInput=[['n',1,1],['s',1,1],['e',1,1],['w',1,1],['o',0,0]]
+#     # 
+#     # i.e. 1 square in each direction and also stay in place.
+#     #
+#     # For more information about the module used to create individual agent objects
+#     # refer to the source in module cpsFsmIndivual.py
+#     ###################################################################################################
+#     
+#     robotList = []
+#     for i in xrange(numRobots):
+#         robotList.append( cpsFsmIndividual.fsmIndiv(arenaDimensions, cpsFsmLabelFunctions.robotLabelFuction,
+#                                                     agentName= 'R'+str(i),
+#                                                     agentAlphabetInput=[['oo',0,0]]))
+#     
+#     #[['nn',1,1],['ss',1,1],['ee',1,1],['ww',1,1],['oo',0,0]]
+#     
+#     ############################# Creating environment agent ##########################################
+#     # This is similar to creating the robot agent. By default we leave the env agent dynamics or env 
+#     # agent alphabet here as empty as we do not know anything about the env agent.
+#     ###################################################################################################
+#     
+#     env = cpsFsmIndividual.fsmIndiv(arenaDimensions, cpsFsmLabelFunctions.envLabelFuction,
+#                                     agentName='E0',
+#                                     agentAlphabetInput=[])
+#     
+#     ########################### Creating turn-based product for the game ###############################
+#     # The turn-based product takes the semi-automata of robot agent and environment agent as inputs
+#     # 
+#     # drawTransitionGraph: if this flag is set as true, a transition graph is drawn.
+#     # This is not advisable if the number of states is too large
+#     #
+#     # The source in this module (cpsFsmTurnProduct.py) handles the creation of turn-based product
+#     ####################################################################################################
+#     
+#     gameProduct = fsmTurnProduct([env]+robotList, arenaDimensions, drawTransitionGraph=False)
+#     
+#     ########################### Getting the parameters of the game automaton ##########################
+#     # The module cpsFsmLoadGameAutomaton.py which reads a saved file from the GUI
+#     # interface primariy uses the function (as below) to get the automatom parameters
+#     #
+#     # gameStates, gameAlphabet, gameTransitions = gameProduct.getFSA()
+#     ####################################################################################################
+#     
+#     gameStates, gameAlphabet, gameTransitions, newTransitions = gameProduct.getFSA()
+#     
+#     ########################### Adding actions to agents ###############################################
+#     # Lets say that we want to add actions to the environment agent without using the GUI.
+#     # The function below does it (in fact this is how the GUI interacts with the back-end code.
+#     # 
+#     # syntax: gameProduct.addActionToAgent(agentName, gridSq1, gridSq2, addAction=True)
+#     # 
+#     # The addActionToAgent function finds if there is a viable action that
+#     # can result in the given agent (agent name) moving from gridSquare1 (gridSq1)
+#     # to gridSq2. If the addAction flag is set as true, the action gets added to the
+#     # given agent's alphabet (dynamics). If the agent's alphabet already contains the
+#     # action, it is ignored. If the addAction flag is set as false, the function checks 
+#     # the current action is a part of the agent alphabet. If it is not a part of the agent
+#     # alphabet and when the addAction flag is false, the function returns a false. The 
+#     # function also returns false when the action is not viable (i.e not a part
+#     # of action library or is outside the grid limits.
+#     # 
+#     # addAction flag: default true
+#     # For robot agent set as false (we do not want the robot dynamics to change during the game)
+#     # For env agent set as true (we need to iteratively learn the env dynamics during the game) 
+#     # 
+#     # e.g. usage gameProduct.addActionToAgent('E', [1,1], [1,0], addAction=True)
+#     #
+#     # This means that the env agent ('E') moves from square (1,1) to (1,0). This is going to result
+#     # in action S1. So the env alphabet will be updated with S1.
+#     #
+#     # This function only verifies if the given move is viable, the function does not remember the history of
+#     # the game. This function does not verify if the last known position of an agent is same as
+#     # the starting position of the current move. This allows moves to be entered in any order and
+#     # not necessarily in a specific viable sequence. 
+#     #####################################################################################################       
+#     
+#     gameProduct.addActionToAgent('E0', [1,1], [1,0], addAction=True)
+#     gameProduct.addAgentActions('E0', ['nn1','ee1'])
+#     
+#     ######################## Getting the game automaton parameters after adding an action ###############
+#     # The same getFSA() function can be used to get the automaton parameters as before.
+#     #####################################################################################################
+#     
+#     gameStates, gameAlphabet, gameTransitions, newTransitions = gameProduct.getFSA()
+#     
+#     ########################## Generating State Labels ##################################################
+#     # Any point in the game, the labels or propositions can be generated with a given input game state 
+#     # using the function below.
+#     #
+#     # Syntax: propositionList = gameProduct.generateStateLabels(stateID)
+#     #
+#     # e.g. usage propositionList = gameProduct.generateStateLabels('R00E11TR')
+#     #
+#     # For more information on label function of robot and env refer to the module cpsFsmLabelFunctions.py
+#     #
+#     # The generateStateLabels function first generates the state labels for both robot and env separately
+#     # using their respective label functions. Then these labels/propositions are merged together. All
+#     # functions connected with handling proposition datastructures can be found in module
+#     # cpsFsmProposition.py. The function that specifically does the merging of the propositions
+#     # is called mergePropositionGrids.
+#     #
+#     # The merge function assigns all the propositions coming down from each agent to the game. If there
+#     # is a conflict in a proposition value between the two agents, the proposition is saved as true.
+#     #
+#     # The output value propositionList is a dictionary datastructure where the dictionary keys correspond
+#     # to the names of the propositions and the values connected with the dictionary are the linear indices
+#     # of the grid squares where the proposition is true (linearization of grid squares from 2D to 1D is
+#     # done through row-major rule). If the proposition is not explicity specified as true, it is considered
+#     # by default as false. 
+#     #
+#     # The cpsFsmLoadGameAutomaton provides an example for the proposition datastructure and explains
+#     # how to read it.
+#     #####################################################################################################
+#     
+#     #propList = gameProduct.generateStateLabels('R00E11TR')
+#     
+#     finishTime = time.time() - start_time
+#     print "Code execution time :", finishTime
+#     
+# #     pickle.dump(gameProduct, open("tempPickle.p","wb"))
+# #     newGameProduct = pickle.load( open( "tempPickle.p", "rb" ) )
+# #     print newGameProduct.arenaDimensions
+# 
+#     # Tests for getTransitionAction(st1, st2)
+#     st1 = 'E0_22_R0_00_R1_10_T_R0'
+#     st2 = 'E0_22_R0_11_R1_10_T_R1'
+#     print gameProduct.getTransitionAction(st1, st2)
+if __name__=="__main__":    
+    robotList = []
+    arenaDimensions = [2,2]
     numRobots = 2
     
-    ##################### Creating robot agent #######################################################
-    #
-    # arenaDimensions: size of arena (x-dir cells, y-dir-cells)
-    # arenaDimensions should be consistent for all agents and the turn-based product
-    # of the game. Turn-based product verifies this and throws an error if there is a mismatch.
-    # 
-    # robotLabelFuction: User-defined label function for the robot agent. For more documentation on label
-    # functions and to see the default robot and env agent label functions, refer to the module
-    # cpsFsmLabelFunctions.py
-    #
-    # agentAlphabetInput: Prior knowledge on the dynamics of the agent or in other words
-    # the agent alphabet. This should be a subset of the action library (contains 26 actions) connected
-    # with the agent. To see more details about the action library, see the documentation of
-    # the module cpsFsmActions.py
-    #
-    # syntax: agentAlphabetInput=[['dir1',min_step1, max_step1], ['dir2',min_step2, max_step2], ...]
-    # e.g. agentAlphabetInput=[['n',1,3], ['e',1,1]]
-    #
-    # This example implies that the agent can move in the north direction a minimum of 1 square
-    # and a maximum of 3 squares, and it can also move 1 square in the east direction.
-    # All possible actions here are (N1, N2, N3, E1)
-    #
-    # For the robot agent we fix its dynamics as
-    # agentAlphabetInput=[['n',1,1],['s',1,1],['e',1,1],['w',1,1],['o',0,0]]
-    # 
-    # i.e. 1 square in each direction and also stay in place.
-    #
-    # For more information about the module used to create individual agent objects
-    # refer to the source in module cpsFsmIndivual.py
-    ###################################################################################################
-    
-    robotList = []
     for i in xrange(numRobots):
-        robotList.append( cpsFsmIndividual.fsmIndiv(arenaDimensions, cpsFsmLabelFunctions.robotLabelFuction,
-                                                    agentName= 'R'+str(i),
-                                                    agentAlphabetInput=[['oo',0,0]]))
-    
-    #[['nn',1,1],['ss',1,1],['ee',1,1],['ww',1,1],['oo',0,0]]
-    
-    ############################# Creating environment agent ##########################################
-    # This is similar to creating the robot agent. By default we leave the env agent dynamics or env 
-    # agent alphabet here as empty as we do not know anything about the env agent.
-    ###################################################################################################
-    
-    env = cpsFsmIndividual.fsmIndiv(arenaDimensions, cpsFsmLabelFunctions.envLabelFuction,
-                                    agentName='E0',
-                                    agentAlphabetInput=[])
-    
-    ########################### Creating turn-based product for the game ###############################
-    # The turn-based product takes the semi-automata of robot agent and environment agent as inputs
-    # 
-    # drawTransitionGraph: if this flag is set as true, a transition graph is drawn.
-    # This is not advisable if the number of states is too large
-    #
-    # The source in this module (cpsFsmTurnProduct.py) handles the creation of turn-based product
-    ####################################################################################################
-    
-    gameProduct = fsmTurnProduct([env]+robotList, arenaDimensions, drawTransitionGraph=False)
-    
-    ########################### Getting the parameters of the game automaton ##########################
-    # The module cpsFsmLoadGameAutomaton.py which reads a saved file from the GUI
-    # interface primariy uses the function (as below) to get the automatom parameters
-    #
-    # gameStates, gameAlphabet, gameTransitions = gameProduct.getFSA()
-    ####################################################################################################
-    
-    gameStates, gameAlphabet, gameTransitions, newTransitions = gameProduct.getFSA()
-    
-    ########################### Adding actions to agents ###############################################
-    # Lets say that we want to add actions to the environment agent without using the GUI.
-    # The function below does it (in fact this is how the GUI interacts with the back-end code.
-    # 
-    # syntax: gameProduct.addActionToAgent(agentName, gridSq1, gridSq2, addAction=True)
-    # 
-    # The addActionToAgent function finds if there is a viable action that
-    # can result in the given agent (agent name) moving from gridSquare1 (gridSq1)
-    # to gridSq2. If the addAction flag is set as true, the action gets added to the
-    # given agent's alphabet (dynamics). If the agent's alphabet already contains the
-    # action, it is ignored. If the addAction flag is set as false, the function checks 
-    # the current action is a part of the agent alphabet. If it is not a part of the agent
-    # alphabet and when the addAction flag is false, the function returns a false. The 
-    # function also returns false when the action is not viable (i.e not a part
-    # of action library or is outside the grid limits.
-    # 
-    # addAction flag: default true
-    # For robot agent set as false (we do not want the robot dynamics to change during the game)
-    # For env agent set as true (we need to iteratively learn the env dynamics during the game) 
-    # 
-    # e.g. usage gameProduct.addActionToAgent('E', [1,1], [1,0], addAction=True)
-    #
-    # This means that the env agent ('E') moves from square (1,1) to (1,0). This is going to result
-    # in action S1. So the env alphabet will be updated with S1.
-    #
-    # This function only verifies if the given move is viable, the function does not remember the history of
-    # the game. This function does not verify if the last known position of an agent is same as
-    # the starting position of the current move. This allows moves to be entered in any order and
-    # not necessarily in a specific viable sequence. 
-    #####################################################################################################       
-    
-    gameProduct.addActionToAgent('E0', [1,1], [1,0], addAction=True)
-    gameProduct.addAgentActions('E0', ['nn1','ee1'])
-    
-    ######################## Getting the game automaton parameters after adding an action ###############
-    # The same getFSA() function can be used to get the automaton parameters as before.
-    #####################################################################################################
-    
-    gameStates, gameAlphabet, gameTransitions, newTransitions = gameProduct.getFSA()
-    
-    ########################## Generating State Labels ##################################################
-    # Any point in the game, the labels or propositions can be generated with a given input game state 
-    # using the function below.
-    #
-    # Syntax: propositionList = gameProduct.generateStateLabels(stateID)
-    #
-    # e.g. usage propositionList = gameProduct.generateStateLabels('R00E11TR')
-    #
-    # For more information on label function of robot and env refer to the module cpsFsmLabelFunctions.py
-    #
-    # The generateStateLabels function first generates the state labels for both robot and env separately
-    # using their respective label functions. Then these labels/propositions are merged together. All
-    # functions connected with handling proposition datastructures can be found in module
-    # cpsFsmProposition.py. The function that specifically does the merging of the propositions
-    # is called mergePropositionGrids.
-    #
-    # The merge function assigns all the propositions coming down from each agent to the game. If there
-    # is a conflict in a proposition value between the two agents, the proposition is saved as true.
-    #
-    # The output value propositionList is a dictionary datastructure where the dictionary keys correspond
-    # to the names of the propositions and the values connected with the dictionary are the linear indices
-    # of the grid squares where the proposition is true (linearization of grid squares from 2D to 1D is
-    # done through row-major rule). If the proposition is not explicity specified as true, it is considered
-    # by default as false. 
-    #
-    # The cpsFsmLoadGameAutomaton provides an example for the proposition datastructure and explains
-    # how to read it.
-    #####################################################################################################
-    
-    #propList = gameProduct.generateStateLabels('R00E11TR')
-    
-    finishTime = time.time() - start_time
-    print "Code execution time :", finishTime
-    
-#     pickle.dump(gameProduct, open("tempPickle.p","wb"))
-#     newGameProduct = pickle.load( open( "tempPickle.p", "rb" ) )
-#     print newGameProduct.arenaDimensions
+        robotList.append( fsmIndiv(arenaDimensions, cpsFsmLabelFunctions.robotLabelFuction,
+                                   agentName='R'+str(i),
+                                   agentAlphabetInput=[['nn',1,1],['ss',1,1],['ee',1,1],['ww',1,1],
+                                                       ['oo',0,0],['ne',1,1],['nw',1,1],['se',1,1],['sw',1,1]], 
+                                   drawTransitionGraph = False,
+                                   grammarType = 'SP_2',
+                                   agentType = 'KNOWN'))
 
-    # Tests for getTransitionAction(st1, st2)
-    st1 = 'E0_22_R0_00_R1_10_T_R0'
-    st2 = 'E0_22_R0_11_R1_10_T_R1'
-    print gameProduct.getTransitionAction(st1, st2)
+    env = fsmIndiv(arenaDimensions, cpsFsmLabelFunctions.envLabelFuction, 
+                    agentName='E0',
+                    agentAlphabetInput=[['oo',0,0]],
+                    drawTransitionGraph = False,
+                    grammarType = 'SP_2',
+                    agentType = 'UNKNOWN')
+
+    turnProduct = fsmTurnProduct([env]+robotList, arenaDimensions)
+    
     
     
     

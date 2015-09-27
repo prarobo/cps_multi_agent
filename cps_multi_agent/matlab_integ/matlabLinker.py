@@ -22,6 +22,7 @@ import StringIO
 import numpy as np
 import os
 from Automata import *
+from cpsFsmFsa import traverseTransitions
 
 
 class matlabLinker(object):
@@ -117,7 +118,7 @@ class matlabLinker(object):
             
             return gamePolicy, currProdState
 
-    def gtsPolicyUpdater(self, gameProduct, gamePolicy, stateHistory, numAgents, 
+    def gtsPolicyUpdater(self, gameProduct, gameStateLabels, gamePolicy, stateHistory, numAgents, 
                             numEnv, lastAction, currState, initState):
 
         # Specifying environment dynamics
@@ -140,7 +141,7 @@ class matlabLinker(object):
                                                             stderr=self.matlabErr, nargout=1)
             return gamePolicy
         else:
-            gamePolicy, currProdState = self.gtsNonMatlabPolicyUpdater(gameProduct, numEnv, lastAction, 
+            gamePolicy, currProdState = self.gtsNonMatlabPolicyUpdater(gameProduct, gameStateLabels, numEnv, lastAction, 
                                                                        currState, initState)
             
             return gamePolicy, currProdState
@@ -163,39 +164,49 @@ class matlabLinker(object):
                 outPolicy[key[:-1]] = 0
         return outPolicy    
     
-    def policyActionToState(self, actionPolicy, gameProduct, numEnv, stateNonGrammarInd = 1):
+    def policyActionToState(self, actionPolicy, prodTransitions):
         '''Convert action policy to policy with end states'''
         
         statePolicy = {}
         for key in actionPolicy.keys():
-            currState = key[stateNonGrammarInd]
-            
-            # Sanity check
-            assert currState in gameProduct.gameStates.keys(), "Invalid state key in policy"                
-                
-            agName = gameProduct.gameStates[currState].userID[-1]
-            agIndex = gameProduct.agentNames.index(agName)
-            
-            if actionPolicy[key] and actionPolicy[key] in gameProduct.agents[agIndex].alphabetList:
-                agPos = [map(int, list(gameProduct.gameStates[currState].userID[i*2+1])) for i in xrange(gameProduct.numAgents)]
-                agentUserID = [agName]
-                agentUserID.extend([agPos[agIndex]])
-                endGridSq = map(int, list(gameProduct.agents[agIndex].actionObj.actionResult(actionPolicy[key], agentUserID)))
-                agPos[agIndex] = endGridSq
-                targetState = self.getMachineID(agPos, agIndex, gameProduct)
-                
-#                 if statePolicy.has_key(currState) and statePolicy[currState] and \
-#                     targetState and statePolicy[currState] != targetState:
-#                     print "Prev policy: ", currState, " -> ", statePolicy[currState]
-#                     print "Curr policy: ", currState, " -> ", targetState
-#                     raise "State policy for different grammar elements not matching"
-#                 else:
-#                     statePolicy[currState] = targetState
-                statePolicy[key] = targetState
+            if actionPolicy[key]:
+                statePolicy[key] = traverseTransitions(key, [actionPolicy[key]], prodTransitions)
             else:
                 statePolicy[key] = None
-                
         return statePolicy
+
+#     def policyActionToState(self, actionPolicy, gameProduct, numEnv, stateNonGrammarInd = 1):
+#         '''Convert action policy to policy with end states'''
+#         
+#         statePolicy = {}
+#
+#         for key in actionPolicy.keys():
+#             currState = key[stateNonGrammarInd]
+#             
+#             # Sanity check
+#             assert currState in gameProduct.gameStates.keys(), "Invalid state key in policy"                
+#                 
+#             agName = gameProduct.gameStates[currState].userID[-1]
+#             agIndex = gameProduct.agentNames.index(agName)
+#             
+#             if actionPolicy[key] and actionPolicy[key] in gameProduct.agents[agIndex].alphabetList:
+#                 agPos = [map(int, list(gameProduct.gameStates[currState].userID[i*2+1])) for i in xrange(gameProduct.numAgents)]
+#                 agentUserID = [agName]
+#                 agentUserID.extend([agPos[agIndex]])
+#                 endGridSq = map(int, list(gameProduct.agents[agIndex].actionObj.actionResult(actionPolicy[key], agentUserID)))
+#                 agPos[agIndex] = endGridSq
+#                 targetState = self.getMachineID(agPos, agIndex, gameProduct)
+#                 
+# #                 if statePolicy.has_key(currState) and statePolicy[currState] and \
+# #                     targetState and statePolicy[currState] != targetState:
+# #                     print "Prev policy: ", currState, " -> ", statePolicy[currState]
+# #                     print "Curr policy: ", currState, " -> ", targetState
+# #                     raise "State policy for different grammar elements not matching"
+# #                 else:
+# #                     statePolicy[currState] = targetState
+#                 statePolicy[key] = targetState
+#             else:
+#                 statePolicy[key] = None
 
     def getMachineID(self, agentPos, agentIndex, gameProduct):
         userID = []
@@ -217,7 +228,7 @@ class matlabLinker(object):
                                                                                           performStateTrace = True)
         
         # Sanity checks
-        self.sanityChecksForStatesAndTransitions((gameStates)+[currProdState], prodTransitions)             
+        # self.sanityChecksForStatesAndTransitions((gameStates)+[currProdState], prodTransitions)             
 
         # prodTransitions contains the transitions in form of a set. each element of the set is a
         # tuple with three elements
@@ -262,22 +273,23 @@ class matlabLinker(object):
         #######################################################################################
         
         actionPolicy = self.P.policyDict(self.dist)
-        gamePolicy = self.policyActionToState(actionPolicy, gameProduct, numEnv)
+        gamePolicy = self.policyActionToState(actionPolicy, prodTransitions)
+        # gamePolicy = self.policyActionToState(actionPolicy, gameProduct, numEnv)
         return gamePolicy, currProdState
     
 #         gamePolicy
 #         for state in self.P.currentStates:
 #             self.policyAction = self.matlabObj.P.getAction(self.matlabObj.dist, state)
         
-    def gtsNonMatlabPolicyUpdater(self, gameProduct, numEnv, lastAction, currState, initState):
+    def gtsNonMatlabPolicyUpdater(self, gameProduct, gameStateLabels, numEnv, lastAction, currState, initState):
         '''Generating GTS directly from python without matlab
         This is only used to incremental update the policy and does not initialize Buchi
         For initialization see function gtsNonMatlabPolicyGenerator'''
-        
+
+
         # Get the game parameters
-        prodStates, prodTransitions, newTransitions, _ = gameProduct.computeGrammarProduct(initState, currState, 
-                                                                                           performStateTrace = False)
-        currProdState = (str(0), currState)
+        prodStates, prodTransitions, _, currProdState = gameProduct.computeGrammarProduct(initState, currState, 
+                                                                                          performStateTrace = True)
         
         # Sanity checks
         self.sanityChecksForStatesAndTransitions(list(prodStates)+[currProdState], prodTransitions)     
@@ -289,15 +301,40 @@ class matlabLinker(object):
         
         #Finally, update GTS and product
         # To get new policy, findEnergyGame needs to be run again
-        self.GTS.incrTrans(newTransitions)
-        self.P.incrProd( newTransitions, self.buchi, self.GTS)
-        self.dist, self.FStar = self.P.findEnergyGame(gameProduct)
-        self.P.input(lastAction) 
+        # self.GTS.incrTrans(newTransitions)
+        # self.P.incrProd( newTransitions, self.buchi, self.GTS)
+        # self.dist, self.FStar = self.P.findEnergyGame(gameProduct)
+        # self.P.input(lastAction) 
+
+        # KEVIN CHANGES 2015-09-23
+        #Get current Buchi State from self.P
+        for state in self.P.currentStates:
+            self.BState = state[1]
+
+        # Create GTS
+        # For more details, see the synthesis.py
+        # Details on WeightedTransitionSystems can be found in GraphicalModels.py
+        self.GTS = WeightedTransitionSystem()
+        self.GTS.TSfromGame(prodStates, prodTransitions, gameStateLabels)
         
+        # Now take product
+        self.P = ProductBuchi()
+        self.P.fromBAndTS(self.buchi, self.GTS, currProdState)
+        
+        # print 'P State Old:', self.P.currentStates
+        for state in self.P.currentStates:
+            self.P.currentStates = set([(state[0],self.BState)])
+
+        # print 'P State New:', self.P.currentStates
+        # dijkStart = time.clock()
+        # This is the same as findEnergyGame from matlab
+        self.dist, self.FStar = self.P.findEnergyGame(gameProduct)
+
         #######################################################################################
         
         actionPolicy = self.P.policyDict(self.dist)
-        gamePolicy = self.policyActionToState(actionPolicy, gameProduct, numEnv)
+        # gamePolicy = self.policyActionToState(actionPolicy, gameProduct, numEnv)
+        gamePolicy = self.policyActionToState(actionPolicy, prodTransitions)
         return gamePolicy, currProdState
 
     def sanityChecksForStatesAndTransitions(self, states = [], transitions = []):    

@@ -6,10 +6,11 @@ Created on Aug 26, 2015
 '''
 from FSA import FSA, compileRE, complement
 from copy import deepcopy
-from itertools import permutations, product
+import itertools
 from cpsFsmFsa import generateFactorFsa, CustomFSA, customFsaProduct
 from cpsFsmFsa import customFSAInefficientIntersection, removeFsaFromProduct, serializeFsaStates
 from types import TupleType
+import cPickle as pickle
 
 __author__ = 'Prasanna Kannappan <prasanna@udel.edu>'
 
@@ -51,13 +52,17 @@ class fsmProductAutomaton(object):
         # Reduce product fsa
         # reducedProductFsa = removeFsaFromProduct(self.productFsa, agentStateTupleRefIndex = 1)
         
+        # Save transitions for verification
+        # pickle.dump(self.productFsa.transitions, open("../transitions.p","wb"))
+        
         # Sanity checks
         self.sanityChecksForStatesAndTransitions(self.productFsa.states, self.productFsa.transitions)            
                 
         # Product states and transitions from adversary specific parameters
         productStates, productTransitions = self.filterGameFromAdversaryParameters(self.productFsa.states, 
                                                                                    self.productFsa.transitions,
-                                                                                   advTargetTransitions)
+                                                                                   advTargetTransitions,
+                                                                                   agentStates, agentTransitions)
 
         # Sanity checks
         self.sanityChecksForStatesAndTransitions(productStates, productTransitions)                 
@@ -67,14 +72,14 @@ class fsmProductAutomaton(object):
         # agentStates = set(gameStates.keys()).difference(advStates)
         
         # Add dummy index to make agent states and transitions consistent with product states and transitions
-        agentStates, agentTransitions = self.addDummyStateTupleIndex(agentStates, agentTransitions, dummyIndexVal = 0)
+        # agentStates, agentTransitions = self.addDummyStateTupleIndex(agentStates, agentTransitions, dummyIndexVal = 0)
         
         # Sanity checks
-        self.sanityChecksForStatesAndTransitions(agentStates, agentTransitions)              
+        # self.sanityChecksForStatesAndTransitions(agentStates, agentTransitions)              
 
         # Combine agent and adversary parameters
-        totalStates = set.union(set(productStates), agentStates)
-        totalTransitions = set.union(productTransitions, agentTransitions)
+        # totalStates = set.union(set(productStates), agentStates)
+        # totalTransitions = set.union(productTransitions, agentTransitions)
         
         # Get the updated set of transitions
         # updateTransitions = gameTransitions.difference(advTransitions)
@@ -88,7 +93,8 @@ class fsmProductAutomaton(object):
         # Sanity check to see if there is any change between game and update transitions
         # assert gameTransitions == updateTransitions, "Game and update transitions are different!"
                  
-        return totalStates, totalTransitions
+        # return totalStates, totalTransitions
+        return productStates, productTransitions
 
     def filterAdversaryFromGameParameters(self, gameStates, gameTransitions, advName):
         '''Filter adversary's game parameters'''
@@ -123,11 +129,13 @@ class fsmProductAutomaton(object):
         return advStates, advTrans, advTargetTrans, agentStates, agentTrans
 
     def filterGameFromAdversaryParameters(self, prodInStates, prodInTransitions, 
-                                                advTargetTransitions, stateNonGrammarInd = 1, 
-                                                stateGrammarInd = 0):
+                                                advTargetTransitions, agentStates, agentTransitions,
+                                                stateNonGrammarInd = 1, stateGrammarInd = 0):
         '''Filter adversary's game parameters'''
 
         prodOutStates = deepcopy(prodInStates)
+        prodOutStates.extend(itertools.product(self.grammarFsa.states, agentStates))
+        
         prodOutTrans = set()
         
         # Sanity check to see if next player name is available
@@ -135,11 +143,19 @@ class fsmProductAutomaton(object):
                 
         # Filter transitions based on whose turn it is    
         for t in prodInTransitions:
-            for t1 in advTargetTransitions:
-                if t1[1] == t[1][stateNonGrammarInd]:
-                    prodOutTrans.add((('0', t1[0]), t[1], t1[2]))
-            targetStateMachineID = t[1][stateNonGrammarInd][:-2]+self.nextPlayerName                
-            prodOutTrans.add((t[0], ('0', targetStateMachineID), t[2]))
+            targetStateMachineID = t[1][stateNonGrammarInd][:-2]+self.nextPlayerName
+            tempTrans = (t[0], (t[1][stateGrammarInd], targetStateMachineID), t[2])                
+            prodOutTrans.add(tempTrans)
+            
+            for t1 in agentTransitions:
+                if t1[0] == targetStateMachineID:
+                    tempTrans = ((t[1][stateGrammarInd], t1[0]), (t[1][stateGrammarInd], t1[1]), t1[2])
+                    prodOutTrans.add(tempTrans)
+                    
+                    for t2 in advTargetTransitions:
+                        if t2[0] == t1[1]:
+                            tempTrans = ((t[1][stateGrammarInd], t2[0]), (t[1][stateGrammarInd], t2[1]), t2[2])
+                            prodOutTrans.add(tempTrans)
                         
         return prodOutStates, prodOutTrans
 
@@ -155,7 +171,7 @@ class fsmProductAutomaton(object):
         if len(alphabet) < grammarParams:
             alphabet = [alphabet[0]]*grammarParams
         
-        allFactors = set(product(alphabet, repeat=grammarParams))
+        allFactors = set(itertools.product(alphabet, repeat=grammarParams))
         complementFactors = allFactors.difference(grammarFactors)
         
         grammarFsa = generateFactorFsa(alphabet, complementFactors, grammarName, grammarParams)

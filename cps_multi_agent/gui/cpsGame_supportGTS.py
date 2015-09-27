@@ -703,8 +703,8 @@ class guiState(object):
             if not resultState:
                 break
             
-            act[i] = self.turnProduct.getTransitionAction(currState[stateNonGrammarInd], resultState)
-            currState = ('0', resultState)
+            act[i] = self.turnProduct.getTransitionAction(currState[stateNonGrammarInd], resultState[1])
+            currState = resultState
             
         return act
     
@@ -759,8 +759,9 @@ class guiState(object):
         self.actionLog.append(currAction)
         
         self.robotPos[robotInd] = [remapX, remapY]
-        self.currMove = (self.currMove + 1) % self.numAgents   
-        self.currProdState = (str(0), self.getMachineID())
+        self.currMove = (self.currMove + 1) % self.numAgents
+        self.currProdState = self.robotPolicy(self.currProdState)   
+        # self.currProdState = (str(0), self.getMachineID())
         
         if self.usePolicy and (not self.useMatlab):
             self.matlabObj.P.input(currAction)   
@@ -813,7 +814,7 @@ class guiState(object):
             root.update_idletasks()
             lastAction = self.actionLog[-1]
             currState = self.stateLog[-1]
-            self.robotPolicy, self.currProdState = self.matlabObj.gtsPolicyUpdater(self.turnProduct, self.robotPolicy, 
+            self.robotPolicy, self.currProdState = self.matlabObj.gtsPolicyUpdater(self.turnProduct, self.gameStateLabels, self.robotPolicy, 
                                                                                    self.stateLog, self.numAgents, 
                                                                                    self.numEnv, lastAction, currState, self.initState)         
 

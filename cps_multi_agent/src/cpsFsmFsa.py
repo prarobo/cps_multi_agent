@@ -121,7 +121,7 @@ class CustomFSA(object):
     
     def traverseFsa(self, startState, actionList):
         '''Traverse an fsa from start state via actions list. Finally find the 
-        target state we reach'''
+        target state we reach'''        
         
         currState = startState
         for a in actionList:
@@ -440,6 +440,23 @@ def removeFsaFromProduct(inFsa, agentStateTupleRefIndex = 0):
     
     return CustomFSA(states, alphabet, transitions, initStates, finalStates, simplifyActions)
 
+def traverseTransitions(startState, actionList, transitions):
+        '''Traverse a list of transitions from start state via actions list. Finally find the 
+        target state we reach'''        
+        
+        currState = startState
+        for a in actionList:
+            
+            # Traverse one transition
+            currState = getTargetStateOnAction(currState, a, transitions)
+            
+            #Sanity check
+            # if not currState:
+            #    pass
+            assert currState, "Target state not found while traversing actions!"
+            
+        return currState  
+    
 if __name__ == '__main__':
     str1 = ''
     str2 = 'a'
