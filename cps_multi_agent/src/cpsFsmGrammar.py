@@ -4,7 +4,8 @@ Created on Jul 30, 2015
 @author: prasanna
 '''
 
-from cpsFsmStrings import *
+from cpsFsmStrings import generateKFactors, generateKSubsequences
+import itertools
 
 class fsmGrammar(object):
     '''Class for computing the grammar''' 
@@ -13,7 +14,9 @@ class fsmGrammar(object):
         '''Constructor'''
         self.grammarName, self.grammarParams = self.identifyGrammarType(grammarType)
         self.moveSeq = [] #Sequence of moves played by agent
-        self.grammar = set() #Grammar of agent
+        self.grammar = set() #Grammar of agent (move grammar + default grammar)
+        self.moveGrammar = set() #Grammar computed from moves of agent
+        self.defaultGrammar = set() #Default grammar to be used along with the computed grammar
         return
         
     def identifyGrammarType(self, grammarType):
@@ -32,7 +35,10 @@ class fsmGrammar(object):
             self.moveSeq = self.moveSeq*self.grammarParams[0]
         
         # Compute new grammar    
-        self.grammar = self.computeGrammar(self.moveSeq)
+        self.moveGrammar = self.computeGrammar(self.moveSeq)
+        
+        # Update final grammar
+        self.grammar = set.union(self.moveGrammar, self.defaultGrammar)
         
         return
         
@@ -53,6 +59,14 @@ class fsmGrammar(object):
     def computeSPkGrammar(self, kval, moveSeq):
         '''Compute the SP-k grammar from the input move sequence'''
         return generateKSubsequences(moveSeq, kval)
+    
+    def computeDefaultGrammar(self, defaultAction, alphabetList):
+        '''Compute default grammar. Useful to avoid deadlocks'''
+        
+        self.defaultGrammar.update(set(itertools.product([defaultAction], alphabetList)))
+        self.defaultGrammar.update(set(itertools.product(alphabetList, [defaultAction])))
+        return
+                                   
     
 '''Unit tests'''
 if __name__ == "__main__":

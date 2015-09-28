@@ -21,6 +21,8 @@ class fsmProductAutomaton(object):
         self.transitionFsa = []
         self.productFsa = []
         self.nextPlayerName = None
+        self.outStates = []
+        self.outTransitions = []
         return
     
     def computeFsaProductTransitions(self, gameStates, gameTransitions, advGrammarObj, advAlphabet, advName):
@@ -59,13 +61,13 @@ class fsmProductAutomaton(object):
         self.sanityChecksForStatesAndTransitions(self.productFsa.states, self.productFsa.transitions)            
                 
         # Product states and transitions from adversary specific parameters
-        productStates, productTransitions = self.filterGameFromAdversaryParameters(self.productFsa.states, 
+        self.outStates, self.outTransitions = self.filterGameFromAdversaryParameters(self.productFsa.states, 
                                                                                    self.productFsa.transitions,
                                                                                    advTargetTransitions,
                                                                                    agentStates, agentTransitions)
 
         # Sanity checks
-        self.sanityChecksForStatesAndTransitions(productStates, productTransitions)                 
+        #self.sanityChecksForStatesAndTransitions(outStates, outTransitions)                 
         
         # Agent transitions and states
         # agentTransitions = gameTransitions.difference(advTransitions)
@@ -94,7 +96,7 @@ class fsmProductAutomaton(object):
         # assert gameTransitions == updateTransitions, "Game and update transitions are different!"
                  
         # return totalStates, totalTransitions
-        return productStates, productTransitions
+        return self.outStates, self.outTransitions
 
     def filterAdversaryFromGameParameters(self, gameStates, gameTransitions, advName):
         '''Filter adversary's game parameters'''

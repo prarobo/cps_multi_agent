@@ -420,13 +420,14 @@ class fsmTurnProduct(object):
         # Get adversary ID
         for i in xrange(self.numAgents):
             if self.agents[i].agentType == 'UNKNOWN':
-                agentID = i
+                advID = i
                 break
             
         # Get adversary parameters
-        advGrammarObj = self.agents[agentID].grammarObj
-        advAlphabet = self.agentAlphabet[agentID] 
-        advName = self.agents[agentID].agentName
+        advGrammarObj = self.agents[advID].grammarObj
+        advAlphabet = self.agentAlphabet[advID] 
+        advName = self.agents[advID].agentName
+        advPrevGrammar = self.agents[advID].prevGrammar
         
         # Get the move sequence list
         moveSeqList = []
@@ -435,24 +436,29 @@ class fsmTurnProduct(object):
                 
                 # Check if agent name matches with the move order before extracting the corresponding moves
                 if self.moveOrder[i] == self.agents[j].agentName:
-                    currMoveSeq = self.agents[j].grammarObj.moveSeq
-                    
-                    # Check if the agent is UNKNOWN. Needed to trim initial dummy moves.
-                    if self.agents[i].agentType == 'UNKNOWN':
-                        grammarFactorLen = self.agents[j].grammarObj.grammarParams[0]
-                        currMoveSeq = currMoveSeq[grammarFactorLen:]
-                        
-                    moveSeqList.append(currMoveSeq)
+                    moveSeqList.append(self.agents[j].agentWord)
                     
         # Convert list of move sequences of each agent into a contiguous sequence
         moveSeq = list(itertools.izip_longest(*moveSeqList))
         moveSeq = funcy.flatten(moveSeq)
         moveSeq = [i for i in moveSeq if i is not None]
         
+        # Check if adversary's grammar has changed 
+        if advGrammarObj.grammar == advPrevGrammar:
+                    
+            # Do not not need to recalculate product automaton
+            prodStates = self.prodAutomaton.outStates
+            prodTransitions = self.prodAutomaton.outTransitions
+            transitionsUpdated = False
+        else:   
+                               
+            # Update product automaton and get product transitions
+            prodStates, prodTransitions = self.prodAutomaton.computeFsaProductTransitions(self.gameStates, gameTransitions, 
+                                                                                          advGrammarObj, advAlphabet, advName) 
+            transitionsUpdated = True
             
-        # Update product automaton and get product transitions
-        prodStates, prodTransitions = self.prodAutomaton.computeFsaProductTransitions(self.gameStates, gameTransitions, advGrammarObj, 
-                                                                                      advAlphabet, advName)                
+        # Update the previous grammar on record
+        self.agents[advID].prevGrammar = deepcopy(advGrammarObj.grammar)                
 
         # Sanity check to see if transitions are lost
         # if self.prevProdTransitions.difference(prodTransitions):
@@ -481,7 +487,7 @@ class fsmTurnProduct(object):
             currProdState = None
             
         self.prevProdTransitions = prodTransitions
-        return prodStates, prodTransitions, newTransitions, currProdState
+        return prodStates, prodTransitions, newTransitions, currProdState, transitionsUpdated
 
 '''Unit Test'''
 # if __name__=="__main__":

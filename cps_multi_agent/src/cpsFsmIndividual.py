@@ -30,7 +30,8 @@ class fsmIndiv(object):
                                        ['ne',1,5],['nw',1,5],['se',1,5],['sw',1,5]],
                  drawTransitionGraph = False,
                  grammarType = 'SL_1',
-                 agentType = 'KNOWN'):
+                 agentType = 'KNOWN',
+                 defaultAction = None):
         '''
         Constructor
         '''
@@ -65,21 +66,32 @@ class fsmIndiv(object):
         self.generateStates() #Initialize list of states 
         self.setInitialFinalStates(initialPositions, goalPositions) #Setting initial and final states  
         
+        # Set default action if not given as input
+        if not defaultAction:
+            defaultAction = list(self.alphabetList)[0]
+            
         self.agentWord = []
         
         # initializing grammar of unknown agent
-        if agentType == 'UNKNOWN' and len(self.alphabetList) != 1:
-            raise "Unknown agent should be initialized with 1 action"
+        if agentType == 'UNKNOWN' and len(self.alphabetList) < 1:
+            raise "Unknown agent should be initialized with atleast 1 action"
         elif agentType == 'UNKNOWN':
-            self.addToAgentWord(list(self.alphabetList)[0])
+            self.grammarObj.computeDefaultGrammar(defaultAction, self.alphabetList)
+            self.addToAgentWord(defaultAction, init=True)
         
         if drawTransitionGraph:
             self.testFSA()
+            
+        self.prevGrammar = None
 
         return
     
-    def addToAgentWord(self, inAct):
-        self.agentWord.append(inAct)
+    def addToAgentWord(self, inAct, init=False):
+        '''Add characters/actions to the agent word or action history'''
+        
+        # Do not update agent word during initialization
+        if not init:
+            self.agentWord.append(inAct)
         
         # If unknown dynamics then update grammar
         if self.agentType == 'UNKNOWN':

@@ -494,7 +494,7 @@ class ProductBuchi(BuchiAutomaton):
                     currDist = dist[s]
                     bestS = s
         if not bestS:
-            action = 'oo0'
+            action = 'xx0'
         else:
             action = self.graph[state][bestS][0]['label']
         return action

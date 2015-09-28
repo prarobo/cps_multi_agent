@@ -169,7 +169,7 @@ class matlabLinker(object):
         
         statePolicy = {}
         for key in actionPolicy.keys():
-            if actionPolicy[key]:
+            if actionPolicy[key] and actionPolicy[key] is not 'xx0':
                 statePolicy[key] = traverseTransitions(key, [actionPolicy[key]], prodTransitions)
             else:
                 statePolicy[key] = None
@@ -224,11 +224,11 @@ class matlabLinker(object):
         This is only used to initialize the policy and does not perform incremental update'''
         
         # Get the game parameters
-        gameStates, prodTransitions, _, currProdState = gameProduct.computeGrammarProduct(initState, initState,
+        gameStates, prodTransitions, _, currProdState, _ = gameProduct.computeGrammarProduct(initState, initState,
                                                                                           performStateTrace = True)
         
         # Sanity checks
-        # self.sanityChecksForStatesAndTransitions((gameStates)+[currProdState], prodTransitions)             
+        self.sanityChecksForStatesAndTransitions((gameStates)+[currProdState], prodTransitions)             
 
         # prodTransitions contains the transitions in form of a set. each element of the set is a
         # tuple with three elements
@@ -288,11 +288,14 @@ class matlabLinker(object):
 
 
         # Get the game parameters
-        prodStates, prodTransitions, _, currProdState = gameProduct.computeGrammarProduct(initState, currState, 
-                                                                                          performStateTrace = True)
+        prodStates, prodTransitions, _, currProdState, transitionsUpdated = gameProduct.computeGrammarProduct(initState, currState, 
+                                                                                                              performStateTrace = True)
+        
+        # Save transitions for verification
+        # pickle.dump(prodTransitions, open("../transitions.p","wb"))
         
         # Sanity checks
-        self.sanityChecksForStatesAndTransitions(list(prodStates)+[currProdState], prodTransitions)     
+        # self.sanityChecksForStatesAndTransitions(list(prodStates)+[currProdState], prodTransitions)     
                 
         # Check if the GTS is initialized before it is incrementally updated
         assert (hasattr(self, 'GTS') and hasattr(self,'buchi') and hasattr(self,'P')), "Trying to update GTS before initialization" 
