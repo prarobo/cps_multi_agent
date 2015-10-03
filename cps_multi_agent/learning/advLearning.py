@@ -2,6 +2,9 @@
 Created on Sep 25, 2015
 
 @author: prasanna
+@about: This module generates action sequences for the adversary that satisfy the gridworld 
+and the strict piecewise input grammar. Multiple runs are recorded to see the time it take to
+converge to adversary model.
 '''
 
 import itertools

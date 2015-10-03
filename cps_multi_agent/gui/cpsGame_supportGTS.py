@@ -646,12 +646,18 @@ class guiState(object):
         root.update_idletasks()
         
         self.stateLog.append(self.getMachineID()) 
-
+        # for state in self.matlabObj.P.currentStates:
+        #     print "state:",state
+        #     print 'Dist:',self.matlabObj.dist[state]
         #if self.turnProduct.getCurrentAlphabet():
+
         if self.usePolicy:
             self.generateRobotPolicy()
-        #self.matlabObj.P.input(self.actionLog[-1])   
-          
+        # self.matlabObj.P.input(self.actionLog[-1])   
+        # print "currProdState:",
+        # for state in self.matlabObj.P.currentStates:
+        #     print "state:",state
+        #     print 'Dist:',self.matlabObj.dist[state]
         if hasattr(self, 'robotPolicy') and self.usePolicy:
             if self.useMatlab:
                 if not self.robotPolicy[self.getMachineID()]==0:
@@ -758,12 +764,12 @@ class guiState(object):
         robotInd = self.currMove-self.numEnv
         currAction = self.turnProduct.agents[self.currMove].actionObj.getActionID(self.robotPos[robotInd][:], [remapX, remapY])
         self.actionLog.append(currAction)
-        
+
         self.robotPos[robotInd] = [remapX, remapY]
         self.currMove = (self.currMove + 1) % self.numAgents
         self.currProdState = self.robotPolicy[self.currProdState]   
-        # self.currProdState = (str(0), self.getMachineID())
-        
+
+
         if self.usePolicy and (not self.useMatlab):
             self.matlabObj.P.input(currAction)   
                 
@@ -851,6 +857,5 @@ class guiState(object):
         
         
 if __name__=="__main__":
-    myGuiState = guiState()
-    print myGuiState.getColors(5)
+    pass
     

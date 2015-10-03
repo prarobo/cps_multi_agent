@@ -163,8 +163,10 @@ class WeightedTransitionSystem(GraphicalModel):
     def labelState(self,state,label):
         """ Applies a label to the indicated transition system state."""
         if state in self.states:
+            # print "ok!"
             if state not in self.labelMapping.keys(): self.labelMapping[state]=set()
             for lab in label: 
+                # print lab
                 self.labels.add(lab)
                 self.labelMapping[state].add(lab)
     
@@ -221,12 +223,16 @@ class WeightedTransitionSystem(GraphicalModel):
         return weight
 
     def TSfromGame(self,gameStates,gameTransitions,gameLabels):
+        for trans in gameTransitions:
+            self.addTransition(trans[0],trans[2],1,trans[1])
         for state in gameStates:
             # First convert labels into strings of the form p1&p2&p3 for all propositions that are true 
             label = '' 
             #PRASANNA_EDIT
             #Previously: props = gameLabels[state].propositionList
             props = gameLabels[state[1]]
+            # print props
+            # print "state[1]:",state[1]
             for i in xrange(len(props)-1):
                 if props['p'+str(i+1)] != []:
                     if len(label) == 0:
@@ -236,12 +242,34 @@ class WeightedTransitionSystem(GraphicalModel):
             # If length of label is 0 then, highest proposition (null proposition) is true
             if len(label)==0:
                 label = 'p'+str(len(props))
+                # print 'test:',label
             self.addState(state)
-            self.labelMapping[state] = label
-        for trans in gameTransitions:
-            # print 'Trans:',trans
-            self.addTransition(trans[0],trans[2],1,trans[1])
-
+            self.labelMapping[state] = set()
+            self.labelMapping[state].add(label)
+            # self.labelState(state,label)
+            # self.labelMapping[state] = label
+            # print "State:",state
+            # print "Label:",label
+        # for trans in gameTransitions:
+        #     # print 'Trans0:',trans[0]
+        #     # print 'Trans1:',trans[1]
+        #     # print 'Trans2:',trans[2]
+        #     self.addTransition(trans[0],trans[2],1,trans[1])
+        # print self.labelMapping.keys()
+        # for state2 in self.states:
+        #     print "state:",state2
+        #     print "label:",self.labelMapping[state2]
+        # print 'Label:', gameLabels['E0_10_R0_00_R1_01_T_E0']
+        # print len(gameLabels['E0_10_R0_00_R1_01_T_E0'])
+        # label = ''
+        # x =gameLabels['E0_10_R0_00_R1_01_T_E0']
+        # for i in xrange(len(x)-1):
+        #     if x['p'+str(i+1)] != []:
+        #         if len(label) == 0:
+        #             label = 'p'+str(i+1)
+        #         else:
+        #             label = label+'&p'+str(i+1)
+        # print label
     def incrTrans(self,newTransitions):
         for edge in newTransitions:
             self.addTransition(edge[0],edge[2],1,edge[1])

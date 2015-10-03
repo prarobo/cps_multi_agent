@@ -160,11 +160,14 @@ class Automaton:
             The set of all states that result from applying symbol
             to a state in the set states.  Returns None if the input
             doesn't enable any out edges from the states. 
-            """
+        #     """
+        # print 'state:',state
+        # print 'symbol:',symbol
         nextStates = set()
         if self.graph[state].keys() is not None:
             for key in self.graph[state].keys():
                 label = self.graph[state][key][0]['label']
+                # print "label:",label
                 if isinstance(self,BuchiAutomaton) or isinstance(self,ProductBuchi):
                     label = buchiProcess(label) # maps formula from prefix form (output from ltb) to infix form
                 if isinstance(self,ProductBuchi) and symbol in str(label):nextStates.add(key)
@@ -202,6 +205,9 @@ class Automaton:
         for state in self.currentStates:
             curr = state
         for state in self.checkSymbolOneState(action,curr):
+            # print "state:",state
+            # print "action:",action
+            # print "curr:",curr
             self.currentStates = set([state])
         
     def checkValidity(self,state):
@@ -441,7 +447,7 @@ class ProductBuchi(BuchiAutomaton):
         
         tsGraph = WTS.graphRepresentation
         for edge in tsGraph.edges():
-            pr = WTS.labelOf(edge[0])
+            pr = WTS.labelMapping[edge[0]]
             for otherEdge in buchi.graph.edges():
                 label = copy.copy(buchi.graph[otherEdge[0]][otherEdge[1]][0]['label'])
                 label = buchiProcess(label)
@@ -465,11 +471,6 @@ class ProductBuchi(BuchiAutomaton):
                 label = copy.copy(buchi.graph[otherEdge[0]][otherEdge[1]][0]['label'])
                 label = buchiProcess(label)
                 if parseTruth(label,pr,buchi.inputLanguage):
-                    # if edge[0] == 'E0_21_R0_00_R1_20_T_E0':
-                    #     print edge[0]
-                    #     print otherEdge[0]
-                    #     print edge[1]
-                    #     print otherEdge[1]
                     act = WTS.graphRepresentation[edge[0]][edge[1]]['action']
                     self.graph.add_edge((edge[0],otherEdge[0]),(edge[1],otherEdge[1]), # Construct edges in product that inherit properties from both graphs.
                                                       dict(copy.deepcopy(WTS.graphRepresentation[edge[0]][edge[1]].items())
@@ -521,6 +522,7 @@ class ProductBuchi(BuchiAutomaton):
             val = float('Inf')
             val2 = [dist[q] for q in Q]
             val = min(val2)
+            # print 'val:',val
             for q in Q:
                 if dist[q] == val:
                     qu = q
@@ -530,8 +532,9 @@ class ProductBuchi(BuchiAutomaton):
             Q.remove(qu)
             if self.graph.predecessors(qu):
                 for p in self.graph.predecessors(qu):
+                    # print "PREDECESSORS!!"
                     # vals = [dist[x] for x in self.graph.successors(p)]
-                    if gameProduct.gameStates[p[0]].userID[7][0] == 'E':
+                    if gameProduct.gameStates[p[0][1]].userID[7][0] == 'E':
                         vals = [dist[x] for x in self.graph.successors(p)]
                         if vals:
                             # dist[p] = max(vals)+1
