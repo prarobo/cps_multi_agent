@@ -484,13 +484,28 @@ class ProductBuchi(BuchiAutomaton):
     def getAction(self,dist,state):
         next_ = self.graph.successors(state)
         currDist = dist[state]
+        if currDist == 0: #this isn't useful! we will end up at an accepting state anyway
+            for key in dist.keys():
+                if dist[key] > currDist:
+                    currDist = dist[key]
         bestS = ''
         for s in next_:
-            if dist[s] == 0 and s[0] == state[0]:
+            # if state[1]=='2':
+            #     if state[0][1] == 'E0_01_R0_00_R1_10_T_R0':
+            #         print"WE MADE IT HERE"
+            #         print "DIST:",dist[state]
+            #         print "DIST[S]:",dist[s]
+            #         print "S:",s
+            #         # if dist[s] == 0:
+            #         #     print "DIST == 0"
+            #         # if s[0][1]==state[0][1]:
+            #         #     print "STATES EQUAL"
+            if dist[s] == 0 and s[0][1] == state[0][1]: #don't move if dist == 0 for next state and
                 action = self.graph[state][s][0]['label']
                 bestS = state
                 break
             else:
+                # if currDist == 0
                 if dist[s]<= currDist:
                     currDist = dist[s]
                     bestS = s

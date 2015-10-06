@@ -603,7 +603,7 @@ class guiState(object):
         global w
         print "Env auto-play ", w.moveEnvPlay.get()
         if w.btnStart.cget("relief")==SUNKEN:
-            if not self.turnProduct.agents[0].alphabetList:
+            if not self.turnProduct.agents[self.envIndex].alphabetList:
                 if w.moveEnvPlay.get() == 1:
                     w.txtOutput.insert(END,'No actions available for env, cannot set auto-play reverting to manual-play\n')
                     w.txtOutput.see(END)
@@ -614,7 +614,7 @@ class guiState(object):
             else:    
                 self.envAutoPlay = w.moveEnvPlay.get()
             
-            if self.envAutoPlay == 1 and self.currMove == 0:
+            if self.envAutoPlay == 1 and self.currMove == self.envIndex:
                 self.envAutoPlayFunc()
                 
                 self.redrawDots()
@@ -627,10 +627,10 @@ class guiState(object):
     
     def envAutoPlayFunc(self):
         global w
-        envAction, envPos = self.chooseEnvMove(list(self.turnProduct.agents[0].alphabetList))
+        envAction, envPos = self.chooseEnvMove(list(self.turnProduct.agents[self.envIndex].alphabetList))
         
-        self.envPlay(envPos)
         w.txtOutput.insert(END,'Env auto-play move=%s\n' % envAction)
+        self.envPlay(envPos)
         return
     
     def envPlay(self, envPos):
@@ -727,7 +727,7 @@ class guiState(object):
         actionID = actionList[actionNum]
         
         # checking if the action is feasible
-        resultPos = self.turnProduct.agents[1].actionObj.actionResultPos(actionID, self.envPos[:])
+        resultPos = self.turnProduct.agents[self.envIndex].actionObj.actionResultPos(actionID, self.envPos[0][:])
         if  resultPos == None:
             actionList.remove(actionID)
             actionID, resultPos = self.chooseEnvMove(actionList)
@@ -795,6 +795,11 @@ class guiState(object):
             w.txtOutput.insert(END,'Env move, waiting for user input ...\n')      
             w.txtOutput.see(END)
             self.beeper()
+            
+        # If env auto-play is on
+        if self.envAutoPlay == 1:
+            self.envPlayCallback()
+            
         return
     
     def generateRobotPolicy(self):

@@ -6,6 +6,7 @@
 # Author: Prasanna Kannappan
 
 import sys
+import cProfile
 
 try:
     from Tkinter import *
@@ -240,7 +241,7 @@ class CPS_Game:
         return
 
 if __name__ == '__main__':
-    vp_start_gui()
-
+    # vp_start_gui()
+    cProfile.runctx( 'vp_start_gui()', globals(), locals(), filename="cpsMultiAgentAnalysis.profile" )
 
 

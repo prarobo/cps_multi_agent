@@ -2,7 +2,6 @@
 Created on Apr 2, 2015
 
 @author: prasanna
-@about: This module connects the adversary learning module to the synthesis modules
 '''
 
 import sys
@@ -124,7 +123,6 @@ class matlabLinker(object):
 
         # Specifying environment dynamics
         # self.gameProduct.addAgentActions('E', ['n1'])        
-              
         if self.useMatlab:
             # Getting transition system parameters
             gameStates, _, _, newTransitions = gameProduct.getFSA()  
@@ -143,7 +141,7 @@ class matlabLinker(object):
             return gamePolicy
         else:
             gamePolicy, currProdState = self.gtsNonMatlabPolicyUpdater(gameProduct, gameStateLabels, numEnv, lastAction, 
-                                                                       currState, initState)
+                                                                       currState, initState,stateHistory)
             
             return gamePolicy, currProdState
     
@@ -287,7 +285,7 @@ class matlabLinker(object):
 #         for state in self.P.currentStates:
 #             self.policyAction = self.matlabObj.P.getAction(self.matlabObj.dist, state)
         
-    def gtsNonMatlabPolicyUpdater(self, gameProduct, gameStateLabels, numEnv, lastAction, currState, initState):
+    def gtsNonMatlabPolicyUpdater(self, gameProduct, gameStateLabels, numEnv, lastAction, currState, initState, stateHistory):
         '''Generating GTS directly from python without matlab
         This is only used to incremental update the policy and does not initialize Buchi
         For initialization see function gtsNonMatlabPolicyGenerator'''
@@ -316,9 +314,47 @@ class matlabLinker(object):
         # self.P.input(lastAction) 
 
         # KEVIN CHANGES 2015-09-23
+        # print "StateLog:",self.StateLog
+        # print "State:",self.StateLog[-1]
+        # print "Label",gameLabels[self.StateLog[-1]]
+
+        label = '' 
+        #PRASANNA_EDIT
+        #Previously: props = gameLabels[state].propositionList
+        props = gameStateLabels[stateHistory[-2]]
+        # print props
+        # print "state[1]:",state[1]
+        for i in xrange(len(props)-1):
+            if props['p'+str(i+1)] != []:
+                if len(label) == 0:
+                    label = 'p'+str(i+1)
+                else:
+                    label = label+'&p'+str(i+1)
+        # If length of label is 0 then, highest proposition (null proposition) is true
+        if len(label)==0:
+            label = 'p'+str(len(props))
+
+        # print 'Label:', label
+
         #Get current Buchi State from self.P
         for state in self.P.currentStates:
             self.BState = state[1]
+        # print "Buchi State:",self.BState
+
+        self.acceptBState = self.buchi.acceptingStates.intersection(self.buchi.checkSymbolOneState(label,self.BState))
+        if self.acceptBState:
+            self.nextBState = self.acceptBState
+        else:
+            maxS = 0
+            for s in self.buchi.checkSymbolOneState(label,self.BState):
+                if s >= maxS:
+                    self.nextBState = s
+                    maxS = s
+            if not self.nextBState:
+                self.nextBState = '0' #reset Buchi if no 'good' transition is available
+
+        for x in self.nextBState:
+            nextB = x
 
         # Create GTS
         # For more details, see the synthesis.py
@@ -332,7 +368,7 @@ class matlabLinker(object):
         
         # print 'P State Old:', self.P.currentStates
         for state in self.P.currentStates:
-            self.P.currentStates = set([(state[0],self.BState)])
+            self.P.currentStates = set([(state[0],nextB)])
 
         # print 'P State New:', self.P.currentStates
         # dijkStart = time.clock()
@@ -368,41 +404,40 @@ class matlabLinker(object):
     
 
 if __name__ == '__main__':
-    pass
     
-#     matlabObj = matlabLinker()
-#     
-#     # Creating the game without GUI
-#     matlabObj.initializeGame()
-# 
-#     # Initializing matlab engine
-#     wsDir = os.path.dirname(os.path.realpath(__file__))
-#     parentDir = os.path.dirname(wsDir)  
-#     matlabPaths = [str(parentDir+'/matlab_files'), str(parentDir+'/matlab_integ')]
-#     matlabObj.initializeMatlab(wsDir, matlabPaths)
-#  
-#     out = StringIO.StringIO()
-#     err = StringIO.StringIO()    
-#     tempAlphabet = ['nn1','ss1']
-#     tempState = [str('E0_00_R0_00_T_R'),str('E0_10_R0_00_T_R')]
-#     tempTrans = [['E0_00_R0_00_T_R0', 'E0_00_R0_00_T_E0', 'n1'], ['R10E00TR', 'R10E00TE', 'e1']]
-#     tempLabels = {}
-#     tempLabels['R00E00TR'] = matlabObj.gameProduct.generateStateLabels('R00E00TR').propositionList
-#     tempLabels['R00E01TR'] = matlabObj.gameProduct.generateStateLabels('R00E01TR').propositionList
-#     convLabels = matlabObj.convertLabels(tempLabels)
-#     matlabObj.matlabEng.matlabTest(tempState, stdout=out,stderr=err,nargout=0)    
-#     print out.getvalue()
-#     
-#     # Generate policy
-#     matlabObj.gamePolicy = matlabObj.gtsPolicyGenerator(matlabObj.gameAlphabet, matlabObj.gameStates, 
-#                                                         matlabObj.gameTransitions, matlabObj.gameStateLabels)
-# 
-#     # Generate policy
-#     matlabObj.gamePolicyUpdate = matlabObj.gtsPolicyUpdater(matlabObj.gamePolicy, matlabObj.newTransitions)
-#     
-#     # Saving to disk
-#     matlabObj.saveToDisk()
-#     
-#     # Closing matlab engine
-#     matlabObj.destructor()
+    matlabObj = matlabLinker()
+    
+    # Creating the game without GUI
+    matlabObj.initializeGame()
+
+    # Initializing matlab engine
+    wsDir = os.path.dirname(os.path.realpath(__file__))
+    parentDir = os.path.dirname(wsDir)  
+    matlabPaths = [str(parentDir+'/matlab_files'), str(parentDir+'/matlab_integ')]
+    matlabObj.initializeMatlab(wsDir, matlabPaths)
+ 
+    out = StringIO.StringIO()
+    err = StringIO.StringIO()    
+    tempAlphabet = ['nn1','ss1']
+    tempState = [str('E0_00_R0_00_T_R'),str('E0_10_R0_00_T_R')]
+    tempTrans = [['E0_00_R0_00_T_R0', 'E0_00_R0_00_T_E0', 'n1'], ['R10E00TR', 'R10E00TE', 'e1']]
+    tempLabels = {}
+    tempLabels['R00E00TR'] = matlabObj.gameProduct.generateStateLabels('R00E00TR').propositionList
+    tempLabels['R00E01TR'] = matlabObj.gameProduct.generateStateLabels('R00E01TR').propositionList
+    convLabels = matlabObj.convertLabels(tempLabels)
+    matlabObj.matlabEng.matlabTest(tempState, stdout=out,stderr=err,nargout=0)    
+    print out.getvalue()
+    
+    # Generate policy
+    matlabObj.gamePolicy = matlabObj.gtsPolicyGenerator(matlabObj.gameAlphabet, matlabObj.gameStates, 
+                                                        matlabObj.gameTransitions, matlabObj.gameStateLabels)
+
+    # Generate policy
+    matlabObj.gamePolicyUpdate = matlabObj.gtsPolicyUpdater(matlabObj.gamePolicy, matlabObj.newTransitions)
+    
+    # Saving to disk
+    matlabObj.saveToDisk()
+    
+    # Closing matlab engine
+    matlabObj.destructor()
         
