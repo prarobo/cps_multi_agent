@@ -22,7 +22,7 @@ import cpsFsmLabelFunctions
 import itertools
 from copy import deepcopy
 from cpsFsmProductAutomaton import fsmProductAutomaton
-from cpsFsmFsa import traverseTransitions
+from cpsFsmFsa import traverseTransitions, generateLookupDictsForTransitions
 import funcy
 
 class fsmTurnProduct(object):
@@ -454,7 +454,8 @@ class fsmTurnProduct(object):
                                
             # Update product automaton and get product transitions
             prodStates, prodTransitions = self.prodAutomaton.computeFsaProductTransitions(self.gameStates, gameTransitions, 
-                                                                                          advGrammarObj, advAlphabet, advName) 
+                                                                                          advGrammarObj, advAlphabet, 
+                                                                                          advName, self.numAgents) 
             transitionsUpdated = True
             
         # Update the previous grammar on record
@@ -480,9 +481,13 @@ class fsmTurnProduct(object):
             # Sanity check to see if initial state is found in product
             assert initProdState in prodStates, "Product initial state cannot be identified, too bad!"
             
+            # Get the lookup table for traversing transitions
+            stateActionToTargetLookup, _ = generateLookupDictsForTransitions(prodTransitions)
+            
             # Traverse fsa to get current state
-            currProdState = traverseTransitions(initProdState, moveSeq, prodTransitions) 
-            # currProdState = (currProdState[stateGrammarInd], currProdState[stateNonGrammarInd])
+            currProdState = traverseTransitions(initProdState, moveSeq, stateActionToTargetLookup)
+            # currProdState = traverseTransitions(initProdState, moveSeq, prodTransitions) 
+
         else:
             currProdState = None
             

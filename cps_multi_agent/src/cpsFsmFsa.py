@@ -152,6 +152,27 @@ class CustomFSA(object):
     def __eq__(self, other): 
         return self.__dict__ == other.__dict__
     
+def generateLookupDictsForTransitions(transitions):
+    '''Create a dictionary that maps states to actions to target states'''
+    
+    stateActionToTargetLookup = {}
+    stateActionLookup = {}
+    
+    for t in transitions:
+        if stateActionToTargetLookup.has_key(t[0]):
+            
+            # Sanity check to see if current action has already been encountered
+            assert not stateActionToTargetLookup[t[0]].has_key(t[2]), \
+                "Action %s for current state %s already present"%(t[0],t[1])
+            
+            stateActionToTargetLookup[t[0]][t[2]] = t[1]
+            stateActionLookup[t[0]].append(t[2])
+        else:
+            stateActionToTargetLookup[t[0]] = {t[2]:t[1]}
+            stateActionLookup[t[0]] = [t[2]]  
+                
+    return stateActionToTargetLookup, stateActionLookup            
+                
 def serializeFsaStates(inFsa, serialStartVal = 0):
     '''Serialize state labels to numbers'''
     states = inFsa.states
@@ -336,17 +357,21 @@ def customFsaProduct(fsaA, fsaB, simplifyActions = True):
     states = set()
     transitions = set()
     
+    # Get state action to target lookups
+    fsaAStateActionToTargetLookup, fsaAStateActionLookup = generateLookupDictsForTransitions(fsaA.transitions)
+    fsaBStateActionToTargetLookup, fsaBStateActionLookup = generateLookupDictsForTransitions(fsaB.transitions)
+    
     while fringeStates:
         currState = fringeStates.pop()
         states.add(currState)
         
-        actionsA = getActionsFromState(currState[0], fsaA.transitions)
-        actionsB = getActionsFromState(currState[1], fsaB.transitions)
+        actionsA = getActionsFromState(currState[0], fsaAStateActionLookup)
+        actionsB = getActionsFromState(currState[1], fsaBStateActionLookup)
         commonActions = list(set.intersection(actionsA, actionsB))
         
         for a in commonActions:
-            stateA = getTargetStateOnAction(currState[0], a, fsaA.transitions)
-            stateB = getTargetStateOnAction(currState[1], a, fsaB.transitions)
+            stateA = getTargetStateOnAction(currState[0], a, fsaAStateActionToTargetLookup)
+            stateB = getTargetStateOnAction(currState[1], a, fsaBStateActionToTargetLookup)
             
             # Add state to fringe if it has not already been expanded
             if (stateA, stateB) not in states:
@@ -365,23 +390,33 @@ def customFsaProduct(fsaA, fsaB, simplifyActions = True):
 
 def getActionsFromState(state, transitions):
     '''Get all out going actions from a given state'''
-    transitions = list(transitions)
-    actions = set()
     
-    for t in transitions:
-        if t[0]==state:
-            actions.add(t[2])
-            
-    return actions
+    # Process based on type of transitions provided dictionary or set
+    if isinstance(transitions, dict):
+        return set(transitions[state])
+    else:
+        transitions = list(transitions)
+        actions = set()
+        
+        for t in transitions:
+            if t[0]==state:
+                actions.add(t[2])
+                
+        return actions
 
 def getTargetStateOnAction(state, action, transitions):
     '''Get all out going actions from a given state'''
-    transitions = list(transitions)
     
-    for t in transitions:
-        if t[0]==state and t[2]==action:
-            return t[1]            
-    return None
+    # Process based on type of transitions provided dictionary or set
+    if isinstance(transitions, dict):
+        return transitions[state][action]
+    else:
+        transitions = list(transitions)
+        
+        for t in transitions:
+            if t[0]==state and t[2]==action:
+                return t[1]            
+        return None
     
 def customFSAInefficientIntersection(fsaA, fsaB, simplifyActions = True):
     '''Intersection of two fsa'''

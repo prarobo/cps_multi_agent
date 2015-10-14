@@ -25,7 +25,8 @@ class fsmProductAutomaton(object):
         self.outTransitions = []
         return
     
-    def computeFsaProductTransitions(self, gameStates, gameTransitions, advGrammarObj, advAlphabet, advName):
+    def computeFsaProductTransitions(self, gameStates, gameTransitions, advGrammarObj, 
+                                        advAlphabet, advName, numAgents):
         '''Computes the transitions from product automaton'''
                 
         gameTransitions = set([tuple(i) for i in gameTransitions])
@@ -58,7 +59,7 @@ class fsmProductAutomaton(object):
         # pickle.dump(self.productFsa.transitions, open("../transitions.p","wb"))
         
         # Sanity checks
-        self.sanityChecksForStatesAndTransitions(self.productFsa.states, self.productFsa.transitions)            
+        self.sanityChecksForStatesAndTransitions(numAgents, self.productFsa.states, self.productFsa.transitions)            
                 
         # Product states and transitions from adversary specific parameters
         self.outStates, self.outTransitions = self.filterGameFromAdversaryParameters(self.productFsa.states, 
@@ -200,15 +201,15 @@ class fsmProductAutomaton(object):
                        
         return outStates, outTransitions    
     
-    def sanityChecksForStatesAndTransitions(self, states = [], transitions = []):    
+    def sanityChecksForStatesAndTransitions(self, numAgents, states = [], transitions = [], maxGrammarLen = 3):    
         '''Check if all states and transitions are of the right form'''
         for state in list(states):
-            assert len(state[0]) < 3, "First component of state too long: %s" % (str(state))
-            assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(state))
+            assert len(state[0]) < maxGrammarLen, "First component of state too long: %s" % (str(state))
+            assert len(state[1]) == numAgents*6+4, "Second component of state not the right size: %s" % (str(state))
         for t in transitions:
             for state in t[:2]:
-                assert len(state[0]) < 3, "First component of state too long: %s" % (str(t))
-                assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(t))        
+                assert len(state[0]) < maxGrammarLen, "First component of state too long: %s" % (str(t))
+                assert len(state[1]) == numAgents*6+4, "Second component of state not the right size: %s" % (str(t))        
         return
        
 if __name__ == '__main__':

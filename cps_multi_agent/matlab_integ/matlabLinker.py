@@ -22,7 +22,7 @@ import StringIO
 import numpy as np
 import os
 from Automata import *
-from cpsFsmFsa import traverseTransitions
+from cpsFsmFsa import traverseTransitions, generateLookupDictsForTransitions
 
 
 class matlabLinker(object):
@@ -97,7 +97,7 @@ class matlabLinker(object):
             convLabels.append([stateID,'p4',matlab.int64(inLabels[stateID]['p4'][:])])
         return convLabels 
     
-    def gtsPolicyGenerator(self, gameProduct, gameStateLabels, initState, numAgents, numEnv):
+    def gtsPolicyGenerator(self, gameProduct, gameStateLabels, initState, numEnv):
         '''Generates robot policy with or without using matlab
         This only initializes the policy the the first time. It does not do incremental update'''
                 
@@ -110,15 +110,17 @@ class matlabLinker(object):
             gameTransitionsNum = self.convertGameTransitions(gameStates, gameTransitions)
             
             gamePolicy = self.matlabEng.gameInteg(gameAlphabet, gameStates, 
-                                                  gameTransitionsNum, convLabels, [initState], self.wsDir, numAgents, 
+                                                  gameTransitionsNum, convLabels, [initState], self.wsDir, 
+                                                  gameProduct.numAgents, 
                                                   stdout=self.matlabOut,stderr=self.matlabErr, nargout=1)
             return gamePolicy
         else:
-            gamePolicy, currProdState = self.gtsNonMatlabPolicyGenerator(gameProduct, gameStateLabels, initState, numEnv)
+            gamePolicy, currProdState = self.gtsNonMatlabPolicyGenerator(gameProduct, gameStateLabels, 
+                                                                         initState, numEnv)
             
             return gamePolicy, currProdState
 
-    def gtsPolicyUpdater(self, gameProduct, gameStateLabels, gamePolicy, stateHistory, numAgents, 
+    def gtsPolicyUpdater(self, gameProduct, gameStateLabels, gamePolicy, stateHistory, 
                             numEnv, lastAction, currState, initState):
 
         # Specifying environment dynamics
@@ -130,7 +132,8 @@ class matlabLinker(object):
             stateHistory = [str(i) for i in stateHistory]
             if newTransitions:
                 newTransitionsNum = self.convertGameTransitions(gameStates, newTransitions)
-                gamePolicy = self.matlabEng.gameUpdateInteg(self.wsDir, stateHistory, numAgents,
+                gamePolicy = self.matlabEng.gameUpdateInteg(self.wsDir, stateHistory, 
+                                                            gameProduct.numAgents,
                                                             newTransitionsNum, 
                                                             stdout=self.matlabOut,
                                                             stderr=self.matlabErr, nargout=1)
@@ -140,8 +143,10 @@ class matlabLinker(object):
                                                             stderr=self.matlabErr, nargout=1)
             return gamePolicy
         else:
-            gamePolicy, currProdState = self.gtsNonMatlabPolicyUpdater(gameProduct, gameStateLabels, numEnv, lastAction, 
-                                                                       currState, initState,stateHistory)
+            gamePolicy, currProdState = self.gtsNonMatlabPolicyUpdater(gameProduct, gameStateLabels, 
+                                                                       numEnv, lastAction, 
+                                                                       currState, initState, 
+                                                                       stateHistory)
             
             return gamePolicy, currProdState
     
@@ -166,10 +171,13 @@ class matlabLinker(object):
     def policyActionToState(self, actionPolicy, prodTransitions):
         '''Convert action policy to policy with end states'''
         
+        # Get the lookup table for traversing transitions
+        stateActionToTargetLookup, _ = generateLookupDictsForTransitions(prodTransitions)
+
         statePolicy = {}
         for key in actionPolicy.keys():
             if actionPolicy[key] and actionPolicy[key] is not 'xx0':
-                statePolicy[key] = traverseTransitions(key, [actionPolicy[key]], prodTransitions)
+                statePolicy[key] = traverseTransitions(key, [actionPolicy[key]], stateActionToTargetLookup)
             else:
                 # print 'key:',key
                 statePolicy[key] = None
@@ -223,14 +231,14 @@ class matlabLinker(object):
         '''Generating GTS directly from python without matlab
         This is only used to initialize the policy and does not perform incremental update'''
         
-        # print gameStateLabels.keys()
+        # Number of agents
+        numAgents = gameProduct.numAgents
 
         # Get the game parameters
         gameStates, prodTransitions, _, currProdState, _ = gameProduct.computeGrammarProduct(initState, initState,
-                                                                                          performStateTrace = True)
-        
+                                                                                             performStateTrace = True)
         # Sanity checks
-        self.sanityChecksForStatesAndTransitions((gameStates)+[currProdState], prodTransitions)             
+        self.sanityChecksForStatesAndTransitions(numAgents, (gameStates)+[currProdState], prodTransitions)             
 
         # prodTransitions contains the transitions in form of a set. each element of the set is a
         # tuple with three elements
@@ -285,21 +293,26 @@ class matlabLinker(object):
 #         for state in self.P.currentStates:
 #             self.policyAction = self.matlabObj.P.getAction(self.matlabObj.dist, state)
         
-    def gtsNonMatlabPolicyUpdater(self, gameProduct, gameStateLabels, numEnv, lastAction, currState, initState, stateHistory):
+    def gtsNonMatlabPolicyUpdater(self, gameProduct, gameStateLabels, 
+                                        numEnv, lastAction, 
+                                        currState, initState, stateHistory):
         '''Generating GTS directly from python without matlab
         This is only used to incremental update the policy and does not initialize Buchi
         For initialization see function gtsNonMatlabPolicyGenerator'''
 
-
+        # Number of agents
+        numAgents = gameProduct.numAgents
+        
         # Get the game parameters
-        prodStates, prodTransitions, _, currProdState, transitionsUpdated = gameProduct.computeGrammarProduct(initState, currState, 
+        prodStates, prodTransitions, _, currProdState, transitionsUpdated = gameProduct.computeGrammarProduct(initState, currState,
                                                                                                               performStateTrace = True)
         
         # Save transitions for verification
         # pickle.dump(prodTransitions, open("../transitions.p","wb"))
         
         # Sanity checks
-        # self.sanityChecksForStatesAndTransitions(list(prodStates)+[currProdState], prodTransitions)     
+        self.sanityChecksForStatesAndTransitions(numAgents, list(prodStates)+[currProdState], 
+                                                 prodTransitions)     
                 
         # Check if the GTS is initialized before it is incrementally updated
         assert (hasattr(self, 'GTS') and hasattr(self,'buchi') and hasattr(self,'P')), "Trying to update GTS before initialization" 
@@ -387,15 +400,16 @@ class matlabLinker(object):
         gamePolicy = self.policyActionToState(actionPolicy, prodTransitions)
         return gamePolicy, currProdState
 
-    def sanityChecksForStatesAndTransitions(self, states = [], transitions = []):    
+    def sanityChecksForStatesAndTransitions(self, numAgents, states = [], 
+                                                transitions = [], maxGrammarLen = 3):    
         '''Check if all states and transitions are of the right form'''
         for state in list(states):
-            assert len(state[0]) < 3, "First component of state too long: %s" % (str(state))
-            assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(state))
+            assert len(state[0]) < maxGrammarLen, "First component of state too long: %s" % (str(state))
+            assert len(state[1]) == numAgents*6+4, "Second component of state not the right size: %s" % (str(state))
         for t in transitions:
             for state in t[:2]:
-                assert len(state[0]) < 3, "First component of state too long: %s" % (str(t))
-                assert len(state[1]) == 22, "Second component of state not the right size: %s" % (str(t))        
+                assert len(state[0]) < maxGrammarLen, "First component of state too long: %s" % (str(t))
+                assert len(state[1]) == numAgents*6+4, "Second component of state not the right size: %s" % (str(t))        
         return
              
     def destructor(self):

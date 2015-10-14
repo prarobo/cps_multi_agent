@@ -101,6 +101,7 @@ class guiState(object):
         self.policyLog = []
         self.initLog = {}
         self.sysLog = self.getSystemInformation()
+        self.gameStateLabels = {}
         
         self.robotLabelInit = {}
         
@@ -564,35 +565,50 @@ class guiState(object):
     def saveAutomatonCallback(self):
         global w
         print "Saving file to disk"      
-        pickle.dump(self.turnProduct, open("../gameAutomaton.p","wb"))
-        w.txtOutput.insert(END,"Game automaton saved to file ../gameAutomaton.p\n")
+        #         pickle.dump(self.turnProduct, open("../gameAutomaton.p","wb"))
+        #         w.txtOutput.insert(END,"Game automaton saved to file ../gameAutomaton.p\n")
+        #         
+        #         # Getting labels of all states
+        #         gameStateLabels = {}
+        #         for stateID in self.turnProduct.gameStates.keys():
+        #             gameStateLabels[stateID] = self.turnProduct.generateStateLabels(stateID, self.agentsLabelInitList)
+        #         
+        #         # Saving labels of all states to disk    
+        #         pickle.dump(self.turnProduct, open("../gameLabels.p","wb"))
+        #         w.txtOutput.insert(END,"Game state labels saved to file ../gameLabels.p\n")
+        #         
+        #         # Saving state and action logs of game
+        #         pickle.dump(self.stateLog, open("../stateLog.p","wb"))
+        #         pickle.dump(self.actionLog, open("../actionLog.p","wb"))
+        #         w.txtOutput.insert(END,"State log saved to file ../stateLog.p\n")
+        #         w.txtOutput.insert(END,"Action log saved to file ../actionLog.p\n")
+        #         
+        #         # Saving policy log of the game
+        #         pickle.dump(self.policyLog, open("../policyLog.p","wb"))
+        #         w.txtOutput.insert(END,"Policy log saved to file ../policyLog.p\n")
+        #         
+        #         # Saving system log of the game
+        #         pickle.dump(self.sysLog, open("../sysLog.p","wb"))
+        #         w.txtOutput.insert(END,"System log saved to file ../sysLog.p\n")
+        #         
+        #         # Saving init log of the game 
+        #         pickle.dump(self.initLog, open("../initLog.p","wb"))
+        #         w.txtOutput.insert(END,"Init log saved to file ../initLog.p\n")
         
-        # Getting labels of all states
-        gameStateLabels = {}
-        for stateID in self.turnProduct.gameStates.keys():
-            gameStateLabels[stateID] = self.turnProduct.generateStateLabels(stateID, self.agentsLabelInitList)
+        # Saving game log to reload game later
+        gameLog = {'actionLog': self.actionLog,
+                   'stateLog': self.stateLog,
+                   'stateLabels': self.gameStateLabels,
+                   'initState': self.initState,
+                   'arenaDimensions': self.arenaDimensions,
+                   'agentColor': self.agentColor,
+                   'labelDisplayExcl': self.labelDisplayExcl,
+                   'labelColor': self.labelColor,
+                   'labelIndex': self.labelIndex,
+                   'numLabels': self.numLabels}
         
-        # Saving labels of all states to disk    
-        pickle.dump(self.turnProduct, open("../gameLabels.p","wb"))
-        w.txtOutput.insert(END,"Game state labels saved to file ../gameLabels.p\n")
-        
-        # Saving state and action logs of game
-        pickle.dump(self.stateLog, open("../stateLog.p","wb"))
-        pickle.dump(self.actionLog, open("../actionLog.p","wb"))
-        w.txtOutput.insert(END,"State log saved to file ../stateLog.p\n")
-        w.txtOutput.insert(END,"Action log saved to file ../actionLog.p\n")
-        
-        # Saving policy log of the game
-        pickle.dump(self.policyLog, open("../policyLog.p","wb"))
-        w.txtOutput.insert(END,"Policy log saved to file ../policyLog.p\n")
-        
-        # Saving system log of the game
-        pickle.dump(self.sysLog, open("../sysLog.p","wb"))
-        w.txtOutput.insert(END,"System log saved to file ../sysLog.p\n")
-        
-        # Saving init log of the game 
-        pickle.dump(self.initLog, open("../initLog.p","wb"))
-        w.txtOutput.insert(END,"Init log saved to file ../initLog.p\n")
+        pickle.dump(gameLog, open("../game_runs/gameLog.p","wb"))
+        w.txtOutput.insert(END,"Game log saved to file ../game_runs/gameLog.p\n")
         return
     
     def getSystemInformation(self):
@@ -814,14 +830,14 @@ class guiState(object):
             root.update_idletasks()
             w.txtOutput.see(END)
             self.robotPolicy, self.currProdState = self.matlabObj.gtsPolicyGenerator(self.turnProduct, self.gameStateLabels,
-                                                                                     self.initState, self.numAgents, 
+                                                                                     self.initState,
                                                                                      self.numEnv)
-            self.initLog['turnProduct'] = deepcopy(self.turnProduct)
-            self.initLog['gameStateLabels'] = deepcopy(self.gameStateLabels)
-            self.initLog['initState'] = deepcopy(self.initState)
-            self.initLog['numAgents'] = deepcopy(self.numAgents)
-            self.initLog['numEnv'] = deepcopy(self.numEnv)
-            self.initLog['matlabObj'] = deepcopy(self.matlabObj)
+            #self.initLog['turnProduct'] = deepcopy(self.turnProduct)
+            #self.initLog['gameStateLabels'] = deepcopy(self.gameStateLabels)
+            #self.initLog['initState'] = deepcopy(self.initState)
+            #self.initLog['numAgents'] = deepcopy(self.numAgents)
+            #self.initLog['numEnv'] = deepcopy(self.numEnv)
+            #self.initLog['matlabObj'] = deepcopy(self.matlabObj)
         else:
             w.txtOutput.insert(END,'Updating robot policy ...')
             root.update_idletasks()
@@ -829,8 +845,8 @@ class guiState(object):
             lastAction = self.actionLog[-1]
             currState = self.stateLog[-1]
             self.robotPolicy, self.currProdState = self.matlabObj.gtsPolicyUpdater(self.turnProduct, self.gameStateLabels, self.robotPolicy, 
-                                                                                   self.stateLog, self.numAgents, 
-                                                                                   self.numEnv, lastAction, currState, self.initState)         
+                                                                                   self.stateLog, self.numEnv,
+                                                                                   lastAction, currState, self.initState)         
 
         endTime = time.time()
         self.policyLog.append(deepcopy(self.robotPolicy))
