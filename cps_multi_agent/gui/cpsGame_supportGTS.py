@@ -787,7 +787,7 @@ class guiState(object):
 
 
         if self.usePolicy and (not self.useMatlab):
-            self.matlabObj.P.input(currAction)   
+            self.matlabObj.P.input(currAction, self.matlabObj.dist)   
                 
         self.redrawDots()
         self.getStateLabels()

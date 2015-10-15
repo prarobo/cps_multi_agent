@@ -195,20 +195,20 @@ class Automaton:
             if states is None: return False
         return True
     
-    def input(self,action):
+    def input(self,action,dist):
         """Similar to checkWord, but actually changes currentStates to the set of states 
         that results from applying the input word to the Automaton
         Inputs:
             word: list of symbols (i.e. a list of lists of strings) 
                 corresponding to a sequence of inputs applied to the Automaton
         """
+        cDist = float('Inf')
         for state in self.currentStates:
             curr = state
         for state in self.checkSymbolOneState(action,curr):
-            # print "state:",state
-            # print "action:",action
-            # print "curr:",curr
-            self.currentStates = set([state])
+            if dist[state]<=cDist:
+                self.currentStates = set([state])
+                cDist = dist[state]
         
     def checkValidity(self,state):
         """ Checks whether or not a state has any out edges
@@ -439,8 +439,7 @@ class ProductBuchi(BuchiAutomaton):
             WTS: a WeightedTransitionSystem object
             initialWTSState: initial state of WTS
         """
-        # buchi = BuchiAutomaton()
-        # buchi.fromStatement(statement,fname)
+
         for state in buchi.initialStates:
             self.initialStates.add((initialWTSState,state))
             self.currentStates.add((initialWTSState,state))
@@ -448,6 +447,8 @@ class ProductBuchi(BuchiAutomaton):
         tsGraph = WTS.graphRepresentation
         for edge in tsGraph.edges():
             pr = WTS.labelMapping[edge[0]]
+            # if edge[0][1]=='E0_01_R0_10_T_R0':
+            #     print "Label:",pr
             for otherEdge in buchi.graph.edges():
                 label = copy.copy(buchi.graph[otherEdge[0]][otherEdge[1]][0]['label'])
                 label = buchiProcess(label)
@@ -462,7 +463,6 @@ class ProductBuchi(BuchiAutomaton):
                     self.inputLanguage.add(act)
         for nodeTuple in self.graph.nodes():
             if nodeTuple[1] in buchi.acceptingStates: self.acceptingStates.add(nodeTuple)
-        # self.calculateDistanceToacceptingStates()
     
     def incrProd(self,newTrans,buchi,WTS):
         for edge in newTrans:
@@ -490,22 +490,11 @@ class ProductBuchi(BuchiAutomaton):
                     currDist = dist[key]
         bestS = ''
         for s in next_:
-            # if state[1]=='2':
-            #     if state[0][1] == 'E0_01_R0_00_R1_10_T_R0':
-            #         print"WE MADE IT HERE"
-            #         print "DIST:",dist[state]
-            #         print "DIST[S]:",dist[s]
-            #         print "S:",s
-            #         # if dist[s] == 0:
-            #         #     print "DIST == 0"
-            #         # if s[0][1]==state[0][1]:
-            #         #     print "STATES EQUAL"
             if dist[s] == 0 and s[0][1] == state[0][1]: #don't move if dist == 0 for next state and
                 action = self.graph[state][s][0]['label']
                 bestS = state
                 break
             else:
-                # if currDist == 0
                 if dist[s]<= currDist:
                     currDist = dist[s]
                     bestS = s
@@ -530,34 +519,31 @@ class ProductBuchi(BuchiAutomaton):
         dist = dict()
         for state in self.graph.nodes():
             dist[state] = float('Inf')
+        # print "F:",len(F)
         for state in F:
             dist[state] = 0
         Q = copy.deepcopy(self.graph.nodes())
+        # print "Q:",len(Q)
         while Q:
             val = float('Inf')
             val2 = [dist[q] for q in Q]
             val = min(val2)
-            # print 'val:',val
             for q in Q:
                 if dist[q] == val:
                     qu = q
                     break
             if dist[qu] == float('Inf'):
+                # print "Q at break:",len(Q)
                 break
             Q.remove(qu)
             if self.graph.predecessors(qu):
                 for p in self.graph.predecessors(qu):
-                    # print "PREDECESSORS!!"
-                    # vals = [dist[x] for x in self.graph.successors(p)]
-                    if gameProduct.gameStates[p[0][1]].userID[7][0] == 'E':
+                    # print gameProduct.gameStates[p[0][1]].userID[-1][0]
+                    if gameProduct.gameStates[p[0][1]].userID[-1][0] == 'E':
                         vals = [dist[x] for x in self.graph.successors(p)]
                         if vals:
-                            # dist[p] = max(vals)+1
                             if p not in F:
                                 dist[p] = max(vals)+1
-                                # for x in self.graph.successors(p):
-                                #     if dist[x] == max(vals):
-                        #check if can transition and if is not final state
                     else:
                         if dist[p] > dist[qu] + 1:
                             dist[p] = dist[qu] + 1
@@ -649,7 +635,6 @@ def buchiProcess(label):
     label = label.replace("(","( ")
     label = label.replace(")"," )")
     label = label.replace("||", " | ")
-    #label = subprocess.check_output(paths.PATH_TO_PRE2IN+"pre2inLTL '" + label + "'",shell=True)
     return copy.deepcopy(label)
 
 def stripProps(formula):

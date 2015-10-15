@@ -38,10 +38,9 @@ class fsmProductAutomaton(object):
         # self.grammarFsa.view()
         
         # Get adversary game parameters
-        advStates, advTransitions, advTargetTransitions, agentStates, agentTransitions \
-                                = self.filterAdversaryFromGameParameters(gameStates, 
-                                                                         gameTransitions, 
-                                                                         advName)
+        advStates, advTransitions, agentStates, agentTransitions = self.filterAdversaryFromGameParameters(gameStates, 
+                                                                                                          gameTransitions, 
+                                                                                                          advName)
         # Getting transition fsa
         self.transitionFsa = CustomFSA(advStates, advAlphabet, advTransitions, advStates, advStates, simplifyActions = False)
         
@@ -64,7 +63,6 @@ class fsmProductAutomaton(object):
         # Product states and transitions from adversary specific parameters
         self.outStates, self.outTransitions = self.filterGameFromAdversaryParameters(self.productFsa.states, 
                                                                                    self.productFsa.transitions,
-                                                                                   advTargetTransitions,
                                                                                    agentStates, agentTransitions)
 
         # Sanity checks
@@ -106,7 +104,6 @@ class fsmProductAutomaton(object):
         advTrans = set()
         agentStates = set()
         agentTrans = set()
-        advTargetTrans = set()
             
         # Filter adversary states
         for i in gameStates.keys():
@@ -124,15 +121,12 @@ class fsmProductAutomaton(object):
                 targetStateMachineID = "_".join(map(str, targetStateUserID))                
                 advTrans.add((t[0], targetStateMachineID, t[2]))
             else:
-                if gameStates[t[1]].userID[-1] == advName:
-                    advTargetTrans.add(t)
-                else:                    
-                    agentTrans.add(t)
+                agentTrans.add(t)
                         
-        return advStates, advTrans, advTargetTrans, agentStates, agentTrans
+        return advStates, advTrans, agentStates, agentTrans
 
     def filterGameFromAdversaryParameters(self, prodInStates, prodInTransitions, 
-                                                advTargetTransitions, agentStates, agentTransitions,
+                                                agentStates, agentTransitions,
                                                 stateNonGrammarInd = 1, stateGrammarInd = 0):
         '''Filter adversary's game parameters'''
 
@@ -140,6 +134,7 @@ class fsmProductAutomaton(object):
         prodOutStates.extend(itertools.product(self.grammarFsa.states, agentStates))
         
         prodOutTrans = set()
+        tempDict = {}
         
         # Sanity check to see if next player name is available
         assert self.nextPlayerName, "Next player name not available"
@@ -149,17 +144,30 @@ class fsmProductAutomaton(object):
             targetStateMachineID = t[1][stateNonGrammarInd][:-2]+self.nextPlayerName
             tempTrans = (t[0], (t[1][stateGrammarInd], targetStateMachineID), t[2])                
             prodOutTrans.add(tempTrans)
+            if tempDict.has_key(targetStateMachineID):
+                tempDict[targetStateMachineID].add(t[1][stateGrammarInd])
+            else:
+                tempDict[targetStateMachineID] = set([t[1][stateGrammarInd]])
+        
+        updated = True
+        while(updated): 
+            updated = False   
+            tempDict1 = {}
             
-            for t1 in agentTransitions:
-                if t1[0] == targetStateMachineID:
-                    tempTrans = ((t[1][stateGrammarInd], t1[0]), (t[1][stateGrammarInd], t1[1]), t1[2])
-                    prodOutTrans.add(tempTrans)
-                    
-                    for t2 in advTargetTransitions:
-                        if t2[0] == t1[1]:
-                            tempTrans = ((t[1][stateGrammarInd], t2[0]), (t[1][stateGrammarInd], t2[1]), t2[2])
-                            prodOutTrans.add(tempTrans)
+            for t in agentTransitions:
+                if tempDict.has_key(t[0]):
+                    updated = True
+                    for g in tempDict[t[0]]:
+                        tempTrans = ((g, t[0]), (g, t[1]), t[2])
+                        prodOutTrans.add(tempTrans)
                         
+                        if tempDict1.has_key(t[1]):
+                            tempDict1[t[1]].add(g)
+                        else:
+                            tempDict1[t[1]] = set([g])
+                            
+            tempDict = deepcopy(tempDict1)
+                                    
         return prodOutStates, prodOutTrans
 
     def generateGrammarFsa(self, grammarObj, agentAlphabet):

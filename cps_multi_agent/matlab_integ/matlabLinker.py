@@ -281,7 +281,10 @@ class matlabLinker(object):
         # This is the same as findEnergyGame from matlab
         self.dist, self.FStar = self.P.findEnergyGame(gameProduct)
         # dijkTime = time.clock() -dijkStart
-        
+        # for state in self.P.currentStates:
+        #     print "State:",state
+        #     print "Dist:", self.dist[state]
+        # print "FStar:",len(self.FStar)
         #######################################################################################
         
         actionPolicy = self.P.policyDict(self.dist)
@@ -330,71 +333,76 @@ class matlabLinker(object):
         # print "StateLog:",self.StateLog
         # print "State:",self.StateLog[-1]
         # print "Label",gameLabels[self.StateLog[-1]]
+        if transitionsUpdated:
+            label = '' 
+            #PRASANNA_EDIT
+            #Previously: props = gameLabels[state].propositionList
+            props = gameStateLabels[stateHistory[-2]]
+            # print props
+            # print "state[1]:",state[1]
+            for i in xrange(len(props)-1):
+                if props['p'+str(i+1)] != []:
+                    if len(label) == 0:
+                        label = 'p'+str(i+1)
+                    else:
+                        label = label+'&p'+str(i+1)
+            # If length of label is 0 then, highest proposition (null proposition) is true
+            if len(label)==0:
+                label = 'p'+str(len(props))
 
-        label = '' 
-        #PRASANNA_EDIT
-        #Previously: props = gameLabels[state].propositionList
-        props = gameStateLabels[stateHistory[-2]]
-        # print props
-        # print "state[1]:",state[1]
-        for i in xrange(len(props)-1):
-            if props['p'+str(i+1)] != []:
-                if len(label) == 0:
-                    label = 'p'+str(i+1)
-                else:
-                    label = label+'&p'+str(i+1)
-        # If length of label is 0 then, highest proposition (null proposition) is true
-        if len(label)==0:
-            label = 'p'+str(len(props))
+            # print 'Label:', label
 
-        # print 'Label:', label
+            #Get current Buchi State from self.P
+            for state in self.P.currentStates:
+                self.BState = state[1]
+            # print "Buchi State:",self.BState
 
-        #Get current Buchi State from self.P
-        for state in self.P.currentStates:
-            self.BState = state[1]
-        # print "Buchi State:",self.BState
+            self.acceptBState = self.buchi.acceptingStates.intersection(self.buchi.checkSymbolOneState(label,self.BState))
+            if self.acceptBState:
+                self.nextBState = self.acceptBState
+            else:
+                maxS = 0
+                for s in self.buchi.checkSymbolOneState(label,self.BState):
+                    if s >= maxS:
+                        self.nextBState = s
+                        maxS = s
+                if not self.nextBState:
+                    self.nextBState = '0' #reset Buchi if no 'good' transition is available
 
-        self.acceptBState = self.buchi.acceptingStates.intersection(self.buchi.checkSymbolOneState(label,self.BState))
-        if self.acceptBState:
-            self.nextBState = self.acceptBState
-        else:
-            maxS = 0
-            for s in self.buchi.checkSymbolOneState(label,self.BState):
-                if s >= maxS:
-                    self.nextBState = s
-                    maxS = s
-            if not self.nextBState:
-                self.nextBState = '0' #reset Buchi if no 'good' transition is available
+            for x in self.nextBState:
+                nextB = x
 
-        for x in self.nextBState:
-            nextB = x
+            # Create GTS
+            # For more details, see the synthesis.py
+            # Details on WeightedTransitionSystems can be found in GraphicalModels.py
+            self.GTS = WeightedTransitionSystem()
+            self.GTS.TSfromGame(prodStates, prodTransitions, gameStateLabels)
+            
+            # Now take product
+            self.P = ProductBuchi()
+            self.P.fromBAndTS(self.buchi, self.GTS, currProdState)
+            
+            # print 'P State Old:', self.P.currentStates
+            for state in self.P.currentStates:
+                self.P.currentStates = set([(state[0],nextB)])
 
-        # Create GTS
-        # For more details, see the synthesis.py
-        # Details on WeightedTransitionSystems can be found in GraphicalModels.py
-        self.GTS = WeightedTransitionSystem()
-        self.GTS.TSfromGame(prodStates, prodTransitions, gameStateLabels)
-        
-        # Now take product
-        self.P = ProductBuchi()
-        self.P.fromBAndTS(self.buchi, self.GTS, currProdState)
-        
-        # print 'P State Old:', self.P.currentStates
-        for state in self.P.currentStates:
-            self.P.currentStates = set([(state[0],nextB)])
-
-        # print 'P State New:', self.P.currentStates
-        # dijkStart = time.clock()
-        # This is the same as findEnergyGame from matlab
-        self.dist, self.FStar = self.P.findEnergyGame(gameProduct)
+            # print 'P State New:', self.P.currentStates
+            # dijkStart = time.clock()
+            # This is the same as findEnergyGame from matlab
+            self.dist, self.FStar = self.P.findEnergyGame(gameProduct)
         # for state in self.P.currentStates:
         #     print "State:",state
         #     print "Dist:", self.dist[state]
+        # print "FStar:",len(self.FStar)
         #######################################################################################
         # for key in self.dist.keys():
         #     if self.dist[key] != float('Inf'):
         #         print "state:",key
         #         print "dist:",self.dist[key]
+
+        else:
+            self.P.input(lastAction,self.dist)
+
         actionPolicy = self.P.policyDict(self.dist)
         # gamePolicy = self.policyActionToState(actionPolicy, gameProduct, numEnv)
         gamePolicy = self.policyActionToState(actionPolicy, prodTransitions)
