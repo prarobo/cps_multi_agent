@@ -4,11 +4,12 @@ Created on Apr 2, 2015
 @author: prasanna
 '''
 
-import sys
+import sys, os
 from copy import deepcopy
-sys.path.append("../src")
-sys.path.append("../fsa") 
-sys.path.append("../matlab_integ") 
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
+sys.path.append(os.path.join(projectDir, "src"))
+sys.path.append(os.path.join(projectDir, "matlab_integ"))
 
 from cpsFsmTurnProduct import fsmTurnProduct
 from cpsFsmIndividual import fsmIndiv
@@ -20,7 +21,6 @@ import matlab.engine
 import matlab
 import StringIO
 import numpy as np
-import os
 from Automata import *
 from cpsFsmFsa import traverseTransitions, generateLookupDictsForTransitions
 
@@ -263,7 +263,7 @@ class matlabLinker(object):
         # More information on BuchiAutomata can be found in Automata.py
         # self.buchi = BuchiAutomaton()
         # self.buchi.readStatement('../matlab_integ/learnSpec2') #read .dot file containing Buchi Automaton for specification
-        self.buchi = pickle.load(open("../matlab_integ/buchiTest.p","rb"))
+        self.buchi = pickle.load(open(os.path.join(projectDir,"matlab_integ", "buchiTest.p"),"rb"))
         # print 'accepting:',self.buchi.acceptingStates
         # Create GTS
         # For more details, see the synthesis.py

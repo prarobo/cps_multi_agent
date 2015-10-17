@@ -12,14 +12,12 @@ This file compares the logs from differnet runs to establish the differences'''
 __author__="Prasanna Kannappan <prasanna@udel.edu>"
 
 from pprint import pprint
-import sys
-sys.path.append("../gui")
-sys.path.append("../fsa")
-sys.path.append("../src")
-sys.path.append("../matlab_integ")
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
+sys.path.append(os.path.join(projectDir, "matlab_integ"))
 
 import cPickle as pickle
-import os
 from deepdiff import DeepDiff
 from Automata import ProductBuchi
 

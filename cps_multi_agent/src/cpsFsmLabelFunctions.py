@@ -49,11 +49,6 @@ import sys
 import numpy as np
 from copy import deepcopy
 
-sys.path.append("../src")
-sys.path.append("../fsa") 
-sys.path.append("../matlab_integ") 
-sys.path.append("../matlab_files") 
-
 def robotLabelFuction(agentObj, machineID, labelInit={}):
     '''Label function for robot agent'''
     #Static labels and position

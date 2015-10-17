@@ -9,14 +9,14 @@ from types import TupleType
 __author__="prasanna kannappan <prasanna@udel.edu>"
 
 # setting system paths
-import sys
-sys.path.append("../fsa")
+import sys, os, tempfile
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
 
 from FSA import FSA
 import itertools
 import re
 import types
-import os, tempfile
 import string
 import funcy
 

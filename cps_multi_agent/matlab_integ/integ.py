@@ -1,7 +1,7 @@
-import sys
-sys.path.append('../gui')
-sys.path.append('../fsa')
-sys.path.append('../src')
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
+sys.path.append(os.path.join(projectDir, "src"))
 
 import cPickle as pickle
 from Automata import *

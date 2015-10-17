@@ -8,9 +8,9 @@ the robot agent and environment agent semi-automata as inputs and combines
 them into a single turn-based product.
 '''
 
-import sys
-sys.path.append("../gui")
-sys.path.append("../fsa") 
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
 
 from cpsFsmIndividual import fsmIndiv
 from cpsFsmState import fsmState

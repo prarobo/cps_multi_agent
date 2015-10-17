@@ -4,9 +4,9 @@ Created on Mar 6, 2015
 @author: prasanna
 '''
 
-import sys
-sys.path.append("../gui")
-sys.path.append("../fsa") 
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
 
 import cPickle as pickle
 from FSA import FSA
@@ -14,7 +14,7 @@ from FSA import FSA
 if __name__=="__main__":
     
     # Loading file from disk 
-    gameAutomaton = pickle.load( open( "../gameAutomaton.p", "rb" ) )
+    gameAutomaton = pickle.load( open( os.path.join(projectDir,"gameAutomaton.p"), "rb" ) )
     
     # Getting game transition system parameters
     # gameStates is the state space

@@ -5,11 +5,12 @@
 #    Nov 19, 2014 12:43:36 PM
 # Author: Prasanna Kannappan
 
-import sys
-sys.path.append("../src")
-sys.path.append("../fsa") 
-sys.path.append("../matlab_integ") 
-sys.path.append("../matlab_files") 
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
+sys.path.append(os.path.join(projectDir, "src"))
+sys.path.append(os.path.join(projectDir, "matlab_integ"))
+sys.path.append(os.path.join(projectDir, "matlab_files"))
 
 from cpsFsmIndividual import fsmIndiv
 from cpsFsmTurnProduct import fsmTurnProduct
@@ -19,8 +20,8 @@ import colorsys
 import cPickle as pickle
 import random
 from scipy import io
-import matlab.engine
-import matlab
+# import matlab.engine
+# import matlab
 import StringIO
 import os
 import scipy
@@ -99,6 +100,7 @@ class guiState(object):
         self.stateLog = []
         self.actionLog = []
         self.policyLog = []
+        self.grammarLog = []
         self.initLog = {}
         self.sysLog = self.getSystemInformation()
         self.gameStateLabels = {}
@@ -202,6 +204,7 @@ class guiState(object):
         self.stateLog = []
         self.actionLog = []
         self.policyLog = []
+        self.grammarLog = []
         self.gameStates = []
         self.gameStateLabels = {}
         self.initState = None
@@ -250,6 +253,7 @@ class guiState(object):
                             
             w.txtOutput.insert(END,'done\n')
             w.txtOutput.insert(END,'Grammar=%s\n' % str(self.turnProduct.agents[self.envIndex].grammarObj.grammar))
+            self.grammarLog.append(deepcopy(self.turnProduct.agents[self.envIndex].grammarObj.grammar))
             w.txtOutput.see(END)
             root.update_idletasks()
             
@@ -381,8 +385,9 @@ class guiState(object):
                                                           addAction=True):     
                         
                         w.txtOutput.insert(END,'Grammar=%s\n' % str(self.turnProduct.agents[self.envIndex].grammarObj.grammar))
-                        self.envPlay([remapX, remapY])                                       
-                        
+                        self.grammarLog.append(deepcopy(self.turnProduct.agents[self.envIndex].grammarObj.grammar))
+                        self.envPlay([remapX, remapY])   
+                                                                                    
                         #self.turnProduct.testFSA()
                     else:
                         w.txtOutput.insert(END,'Invalid env move\n')
@@ -605,9 +610,13 @@ class guiState(object):
                    'labelDisplayExcl': self.labelDisplayExcl,
                    'labelColor': self.labelColor,
                    'labelIndex': self.labelIndex,
-                   'numLabels': self.numLabels}
+                   'numLabels': self.numLabels,
+                   'numRobots': self.numRobots,
+                   'numEnv': self.numEnv,
+                   'turnProduct': self.turnProduct,
+                   'grammarLog': self.grammarLog}
         
-        pickle.dump(gameLog, open("../game_runs/gameLog.p","wb"))
+        pickle.dump(gameLog, open(os.path.join(projectDir,"game_runs","gameLog.p"),"wb"))
         w.txtOutput.insert(END,"Game log saved to file ../game_runs/gameLog.p\n")
         return
     

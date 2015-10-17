@@ -5,9 +5,10 @@
 #    Nov 19, 2014 12:43:36 PM
 
 
-import sys
-sys.path.append("../src")
-sys.path.append("../fsa") 
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
+sys.path.append(os.path.join(projectDir, "src"))
 
 from cpsFsmIndividual import fsmIndiv
 from cpsFsmTurnProduct import fsmTurnProduct
@@ -73,10 +74,16 @@ class guiState(object):
         self.stateLabels = None
         self.maxMove = None
         self.numLabels = None
+        self.numRobots = None
+        self.numEnv = None
+        self.turmProduct = None
+        self.bottomFlag = None
+        self.topFlag = None
         return
     
     def selectFileCallback(self):
-        filename = tkFileDialog.askopenfilename(initialdir="../game_runs" )
+        projectDir = os.path.dirname(os.path.dirname(__file__))
+        filename = tkFileDialog.askopenfilename(initialdir=os.path.join(projectDir,'game_runs') )
         if filename:
             self.gameLog = pickle.load( open(filename, "rb") )
             
@@ -89,41 +96,101 @@ class guiState(object):
             self.labelIndex = self.gameLog['labelIndex']
             self.labelDisplayExcl = self.gameLog['labelDisplayExcl']
             self.numLabels = self.gameLog['numLabels']
+            self.numRobots = self.gameLog['numRobots']
+            self.numEnv = self.gameLog['numEnv']
+            self.turnProduct = self.gameLog['turnProduct']
+            self.grammarLog = self.gameLog['grammarLog']
             self.maxMove = len(self.stateLog)-1
             self.filename = filename
-            self.currMove = 0
             
-            w.txtOutput.delete(1.0, END)
-            self.redrawAll()
+            
+            w.btnNext.configure(state=NORMAL)
+            w.btnPrev.configure(state=NORMAL)
+            w.btnReset.configure(state=NORMAL)
+
+            self.generateLegend()
+            self.resetCallback()
         
+        return
+    
+    def resetCallback(self):
+        self.currMove = 0
+        self.topFlag = False
+        self.bottomFlag = False
+        
+        w.txtOutput.delete(1.0, END)
+        w.txtOutput.insert(END,'Initial Grammar=%s\n' % str(self.grammarLog[0]))
+
+        self.redrawAll()
         return
     
     def interpretStateID(self, stateID):
         '''Break state ID into meaningful components'''
         
         stateID = stateID.split('_')
-        envPos = [[int(x) for x in stateID[1]]]
-        robotPos = [[int(x) for x in i] for i in [stateID[3], stateID[5]]]
+        envPos = [[int(x) for x in i] for i in stateID[1:self.numEnv*2:2]]
+        robotPos = [[int(x) for x in i] for i in stateID[self.numEnv*2+1:self.numEnv*2+1+self.numRobots*2:2]]
         
         return robotPos, envPos
         
     def prevCallback(self):
-        if self.filename:
-            self.currMove = max([0,self.currMove-1])
-            self.redrawAll()
+        global w
+        self.currMove = max([0,self.currMove-1])
+
+        if self.bottomFlag:
+            w.txtOutput.insert(END,'Game recording ends\n')
+            w.txtOutput.see(END)
+            root.update_idletasks()
+        else:
+            self.redrawAll(buttonCode = 'prev')
+            self.topFlag = False
+            self.bottomFlag = False            
+        
+        if self.currMove == 0:
+            self.bottomFlag = True
+                    
         return
                
     def nextCallback(self):
-        if self.filename:
-            self.currMove = min([self.maxMove,self.currMove+1])
-            self.redrawAll()
+        global w
+        self.currMove = min([self.maxMove,self.currMove+1])
+
+        if self.topFlag:
+            w.txtOutput.insert(END,'Game recording ends\n')
+            w.txtOutput.see(END)
+            root.update_idletasks()
+        else:
+            self.redrawAll(buttonCode = 'next')
+            self.topFlag = False
+            self.bottomFlag = False            
+        
+        if self.currMove == self.maxMove:
+            self.topFlag = True
         return
     
-    def redrawAll(self):
+    def displayInfo(self):
         global w
+        if self.currState and self.currMove != 0:
+            w.txtOutput.insert(END,'Move agent %s=%s\n' %(self.stateLog[self.currMove-1][-2:], 
+                                                          str(self.actionLog[self.currMove-1])))        
+        
+        if self.currState and (self.currMove-1)%(self.numRobots+self.numEnv) == 0:
+            currAdvMove = int((self.currMove-1)/(self.numRobots+self.numEnv))+1
+            w.txtOutput.insert(END,'Grammar=%s\n' % str(self.grammarLog[currAdvMove]))
+            
+            w.txtOutput.insert(END,'New Subsequences=%s\n' % str(set.difference(self.grammarLog[currAdvMove],
+                                                                                self.grammarLog[currAdvMove-1])))
+        w.txtOutput.see(END)
+        return
+        
+    def redrawAll(self, buttonCode=None):
+                    
         self.currState = self.stateLog[self.currMove]
         self.robotPos, self.envPos = self.interpretStateID(self.currState)
         
+        if buttonCode == 'next':
+            self.displayInfo()
+                        
         self.drawGrid()
         self.redrawDots()
         self.redrawLabelDots()
@@ -213,6 +280,33 @@ class guiState(object):
                     x, y = self.remapCoord(pos[0], pos[1])
                     BB = self.getLabelBoundingBox(x, y, propIndex)
                     w.canvasBoard.create_oval(BB,fill=propColor)
+        return
+                    
+    def generateLegend(self):
+        global w
+
+        startX = 20
+        startY = 30
+        circDia = 20
+        lineGap = 20
+        
+        for i in xrange(self.turnProduct.numAgents):
+            x = startX
+            y = startY+i*(circDia+lineGap)  
+            w.canvasLegend.create_oval([x,y,x+circDia,y+circDia],fill=self.agentColor[i])
+            w.canvasLegend.create_text([x+circDia+5,y-2], anchor=NW, text=self.turnProduct.agentNames[i])
+                
+        startX = 100
+        startY = 30
+        circDia = 10
+        lineGap = 10
+        
+        for i in self.labelIndex.keys():
+            x = startX
+            y = startY+self.labelIndex[i]*(circDia+lineGap)  
+            w.canvasLegend.create_oval([x,y,x+circDia,y+circDia],fill=self.labelColor[self.labelIndex[i]])
+            w.canvasLegend.create_text([x+circDia+5,y-2], anchor=NW, text=i)
+        return
 
     def windowResizeCallback(self, event):
         print "Window dimensions : ", event.width, event.height

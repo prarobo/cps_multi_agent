@@ -63,45 +63,62 @@ class CPS_Game:
 
         master.configure(highlightcolor="black")
 
-        self.btnSelectFile = Button (master)
-        self.btnSelectFile.place(relx=0.65,rely=0.04,height=117,width=300)
-        self.btnSelectFile.configure(activebackground="#d9d9d9")
-        self.btnSelectFile.configure(text='''Select File''')
-        self.btnSelectFile.configure(command=currGuiState.selectFileCallback)
+        self.btnSelectFile = Button (master,
+                                     activebackground="#d9d9d9",
+                                     text='''Select File''',
+                                     command=currGuiState.selectFileCallback)
 
-        self.btnPrev = Button (master)
-        self.btnPrev.place(relx=0.603,rely=0.55,height=60,width=200)
-        self.btnPrev.configure(activebackground="#d9d9d9")
-        self.btnPrev.configure(text='''<-- Prev''')
-        self.btnPrev.configure(command=currGuiState.prevCallback)
+        self.btnReset = Button (master,
+                                activebackground="#d9d9d9",
+                                text='''Reset''',
+                                state=DISABLED,
+                                command=currGuiState.resetCallback)
 
-        self.btnNext = Button (master)
-        self.btnNext.place(relx=0.78,rely=0.55,height=60,width=200)
-        self.btnNext.configure(activebackground="#d9d9d9")
-        self.btnNext.configure(text='''Next -->''')
-        self.btnNext.configure(command=currGuiState.nextCallback)
+        self.btnPrev = Button (master,
+                               activebackground="#d9d9d9",
+                               text='''<-- Prev''',
+                               state=DISABLED,
+                               command=currGuiState.prevCallback)
 
-        self.canvasBoard = Canvas (master)
-        self.canvasBoard.place(relx=0.01,rely=0.01,relheight=0.91,relwidth=0.52)
-        self.canvasBoard.configure(background="white")
-        self.canvasBoard.configure(borderwidth="2")
-        self.canvasBoard.configure(relief=RIDGE)
-        self.canvasBoard.configure(selectbackground="#c4c4c4")
+        self.btnNext = Button (master,
+                               activebackground="#d9d9d9",
+                               text='''Next -->''',
+                               state=DISABLED,
+                               command=currGuiState.nextCallback)
+
+        self.canvasBoard = Canvas (master,
+                                   background="white",
+                                   borderwidth="2",
+                                   relief=RIDGE,
+                                   selectbackground="#c4c4c4")
         self.canvasBoard.bind("<Button-1>", currGuiState.prevCallback)        
  
         self.scrollbar = Scrollbar(master)
-        self.scrollbar.place(relx=0.95,rely=0.70,relheight=0.21,relwidth=0.015)
         
-        self.txtOutput = Text (master)
-        self.txtOutput.place(relx=0.57,rely=0.70,relheight=0.21,relwidth=0.38)
-        self.txtOutput.configure(background=_bgcolor)
-        self.txtOutput.configure(relief=RIDGE)
-        self.txtOutput.configure(font="TkTextFont")
-        self.txtOutput.configure(selectbackground="#c4c4c4")
-        self.txtOutput.configure(yscrollcommand=self.scrollbar.set)                        
+        self.txtOutput = Text (master,
+                               background=_bgcolor,
+                               relief=RIDGE,
+                               font="TkTextFont",
+                               selectbackground="#c4c4c4",
+                               yscrollcommand=self.scrollbar.set)                       
         self.scrollbar.config(command=self.txtOutput.yview)
         
+        self.canvasLegend = Canvas (master,
+                            borderwidth="2",
+                            selectbackground="#c4c4c4")
+
         master.bind("<Configure>", currGuiState.windowResizeCallback)
+
+        # Position of GUI elements
+        self.txtOutput.place(relx=0.57,rely=0.70,relheight=0.21,relwidth=0.38)
+        self.scrollbar.place(relx=0.95,rely=0.70,relheight=0.21,relwidth=0.015)
+        self.btnNext.place(relx=0.78,rely=0.55,height=60,width=200)
+        self.btnPrev.place(relx=0.603,rely=0.55,height=60,width=200)
+        self.btnSelectFile.place(relx=0.603,rely=0.04,height=117,width=200)
+        self.btnReset.place(relx=0.78,rely=0.04,height=117,width=200)
+        self.canvasBoard.place(relx=0.01,rely=0.01,relheight=0.91,relwidth=0.52)
+        self.canvasLegend.place(relx=0.6,rely=0.25,relheight=0.25,relwidth=0.2)
+
         
         return
 

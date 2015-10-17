@@ -6,9 +6,9 @@ Created on Nov 12, 2014
 Generates the Semi-automata of an individual agent 
 '''
 
-import sys
-sys.path.append("../gui")
-sys.path.append("../fsa") 
+import sys, os
+projectDir = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(os.path.join(projectDir, "fsa"))
 
 import numpy as np
 from cpsFsmActions import fsmActions
