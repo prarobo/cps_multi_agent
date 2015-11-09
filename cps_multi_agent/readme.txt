@@ -2,6 +2,34 @@
 Title: CPS multi-agent simulator
 Author: Prasanna Kannappan <prasanna at udel dot edu>
 Date: Oct 17, 2015
+
+-----------------------------------------------------------------
+Acknowledgments
+-----------------------------------------------------------------
+This work was supported by NSF CNS under awards #103588 and #103577.
+This project was a collaboration between University of Delaware and
+Boston university.
+
+Sections of the code related to policy synthesis was written by
+Kevin Leahy of Boston University.
+
+The FSA package was used for visualization purposes. This was later
+superseded by a custom build of FSA functions that were developed
+expressly for this application.
+
+For more information about the FSA package see
+https://pypi.python.org/pypi/FSA
+
+-----------------------------------------------------------------
+Citations
+-----------------------------------------------------------------
+
+If you use as part of this package, please cite
+Kevin Leahy, Prasanna Kannappan, Adam Jardine, Jeffrey Heinz, 
+Bert Tanner, and Calin Belta. Integration of Deterministic Inference
+with Formal	Synthesis for Control under Uncertainty. 
+Submitted to American Control Conference (ACC) 2015.
+
 -----------------------------------------------------------------
 System requirements
 -----------------------------------------------------------------
