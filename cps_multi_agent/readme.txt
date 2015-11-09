@@ -2,6 +2,10 @@
 Title: CPS multi-agent simulator
 Author: Prasanna Kannappan <prasanna at udel dot edu>
 Date: Oct 17, 2015
+-----------------------------------------------------------------
+Multi agent simulator where multiple agents learn the behvior of 
+an unknown adversary using language theory constructs 
+(strictly-2-piecewise assumption).
 
 -----------------------------------------------------------------
 Acknowledgments
