@@ -5,7 +5,10 @@ Date: Oct 17, 2015
 -----------------------------------------------------------------
 Multi agent simulator where multiple agents learn the behvior of 
 an unknown adversary using language theory constructs 
-(strictly-2-piecewise assumption).
+(strictly-2-piecewise assumption). The software is mostly built
+using python. Matlab's python engine was intially used for
+supporting some opertions. Later this was fully replaced by python
+to offer better portability.
 
 -----------------------------------------------------------------
 Acknowledgments
@@ -30,9 +33,9 @@ Citations
 
 If you use as part of this package, please cite
 Kevin Leahy, Prasanna Kannappan, Adam Jardine, Jeffrey Heinz, 
-Bert Tanner, and Calin Belta. Integration of Deterministic Inference
-with Formal	Synthesis for Control under Uncertainty. 
-Submitted to American Control Conference (ACC) 2015.
+Bert Tanner, and Calin Belta, "Integration of Deterministic Inference
+with Formal	Synthesis for Control under Uncertainty.", 
+submitted to American Control Conference (ACC) 2015.
 
 -----------------------------------------------------------------
 System requirements
