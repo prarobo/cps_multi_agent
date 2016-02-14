@@ -3,7 +3,7 @@ Title: CPS multi-agent simulator
 Author: Prasanna Kannappan <prasanna at udel dot edu>
 Date: Oct 17, 2015
 -----------------------------------------------------------------
-Multi agent simulator where multiple agents learn the behvior of 
+Multi agent simulator where multiple agents learn the behavior of 
 an unknown adversary using language theory constructs 
 (strictly-2-piecewise assumption). The software is mostly built
 using python. Matlab's python engine was intially used for
@@ -31,7 +31,7 @@ https://pypi.python.org/pypi/FSA
 Citations
 -----------------------------------------------------------------
 
-If you use as part of this package, please cite
+If you use any part of this package, please cite
 Kevin Leahy, Prasanna Kannappan, Adam Jardine, Jeffrey Heinz, 
 Bert Tanner, and Calin Belta, "Integration of Deterministic Inference
 with Formal	Synthesis for Control under Uncertainty.", 
@@ -45,7 +45,7 @@ This package was developed using python 2.7 64-bit distribution.
 The testing was done in ubuntu 12.04. The software should be
 portable to other operating systems (e.g. mac, windows) if the
 appropriate python distribution is available. However, this has
-not been verified. Let me know if you have encounter any problems.
+not been verified. Let me know if you encounter any problems.
 
 -----------------------------------------------------------------
 Running Instructions
@@ -59,7 +59,7 @@ directory.
 e.g. /home/cps_multi_agent/gui
 
 Once you have changed the directory to the gui directory, then
-you can run the executables. For example, o run the cpsGameViewer.py 
+you can run the executables. For example, to run the cpsGameViewer.py 
 executable, use the command below.
 
 ./cpsGameViewer.py
@@ -103,7 +103,7 @@ All the libraries used here can be easily downloaded from python
 repositories. In case you have any missing imports. Try installing
 them using pip.
 
-e.g. sudo pip install missing_dependence
+e.g. sudo pip install missing_dependency
 
 2) Changing permissions of a file to executable
 
